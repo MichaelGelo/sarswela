@@ -15,6 +15,7 @@ LiquidCrystal_I2C lcd(0x27,  16, 2);
 
 int lastState = -1;
 bool anyPressed = false;
+bool foreignGate = false;
 
 void displayMessage(int state) {
   if (state == lastState) return;
@@ -59,42 +60,46 @@ void setup() {
 
 void loop() {
   if (digitalRead(deaf_mode) == LOW) {
+    foreignGate = false;
     displayMessage(0);
     Serial.println("STOP");
     anyPressed = true;
     delay(250);
   }
   else if (digitalRead(blind_mode) == LOW) {
+    foreignGate = false;
     displayMessage(1);
     Serial.println("PLAY:blind");
     anyPressed = true;
     delay(250);
   }
   else if (digitalRead(child_mode) == LOW) {
+    foreignGate = false;
     displayMessage(2);
     Serial.println("STOP");
     anyPressed = true;
     delay(250);
   }
   else if (digitalRead(forei_mode) == LOW) {
+    foreignGate = true;
     displayMessage(3);
     Serial.println("STOP");
     anyPressed = true;
     delay(250);
   }
-  else if (digitalRead(forei_eng) == LOW) {
+  else if (digitalRead(forei_eng) == LOW && foreignGate) {
     displayMessage(4);
     Serial.println("PLAY:english");
     anyPressed = true;
     delay(250);
   }
-  else if (digitalRead(forei_span) == LOW) {
+  else if (digitalRead(forei_span) == LOW && foreignGate) {
     displayMessage(5);
     Serial.println("PLAY:spanish");
     anyPressed = true;
     delay(250);
   }
-  else if (digitalRead(forei_mand) == LOW) {
+  else if (digitalRead(forei_mand) == LOW && foreignGate) {
     displayMessage(6);
     Serial.println("PLAY:mandarin");
     anyPressed = true;
