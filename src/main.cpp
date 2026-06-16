@@ -44,7 +44,7 @@ void loop() {
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Blind Mode");
-    Serial.println("Blind Mode button pressed!");
+    Serial.println("PLAY:blind");
     pressed = true;
     delay(250);
   }
@@ -70,7 +70,7 @@ void loop() {
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("English");
-    Serial.println("English Language button pressed!");
+    Serial.println("PLAY:english");
     pressed = true;
     delay(250);
   }
@@ -78,7 +78,7 @@ void loop() {
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Spanish");
-    Serial.println("Spanish Language button pressed!");
+    Serial.println("PLAY:spanish");
     pressed = true;
     delay(250);
   }
@@ -86,7 +86,7 @@ void loop() {
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Mandarin");
-    Serial.println("Mandarin Language button pressed!");
+    Serial.println("PLAY:mandarin");
     pressed = true;
     delay(250);
   }
