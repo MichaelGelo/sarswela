@@ -40,9 +40,11 @@ while True:
 
         print(f"Received: {line}")
 
-        if line in audio_files:
-            filename = audio_files[line]
-            filename = os.path.join(SOUNDS_PATH, filename)
+        if line == "STOP":
+            pygame.mixer.music.stop()
+            print("Stopped.")
+        elif line in audio_files:
+            filename = os.path.join(SOUNDS_PATH, audio_files[line])
             if os.path.exists(filename):
                 pygame.mixer.music.stop()
                 pygame.mixer.music.load(filename)

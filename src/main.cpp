@@ -3,7 +3,7 @@
 
 #include  <Wire.h>
 #define deaf_mode 2
-#define blind_mode 3 
+#define blind_mode 3
 #define child_mode 4
 #define forei_mode 5
 
@@ -13,9 +13,35 @@
 
 LiquidCrystal_I2C lcd(0x27,  16, 2);
 
+int lastState = -1;
+bool anyPressed = false;
+
+void displayMessage(int state) {
+  if (state == lastState) return;
+  lastState = state;
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+
+  switch (state) {
+    case 0: lcd.print("Deaf Mode"); break;
+    case 1: lcd.print("Blind Mode"); break;
+    case 2: lcd.print("Child Mode"); break;
+    case 3:
+      lcd.print("Foreign Lang");
+      lcd.setCursor(0, 1);
+      lcd.print("Mode");
+      break;
+    case 4: lcd.print("English"); break;
+    case 5: lcd.print("Spanish"); break;
+    case 6: lcd.print("Mandarin"); break;
+    case 7: lcd.print("Select a mode"); break;
+  }
+}
+
 void setup() {
   Serial.begin(9600);
- 
+
   pinMode(deaf_mode, INPUT_PULLUP);
   pinMode(blind_mode, INPUT_PULLUP);
   pinMode(child_mode, INPUT_PULLUP);
@@ -26,75 +52,55 @@ void setup() {
   pinMode(forei_mand, INPUT_PULLUP);
 
   lcd.init();
+  lcd.clear();
   lcd.backlight();
+  displayMessage(7);
 }
 
 void loop() {
-  bool pressed = false;
-
   if (digitalRead(deaf_mode) == LOW) {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Deaf Mode");
-    Serial.println("Deaf Mode button pressed!");
-    pressed = true;
+    displayMessage(0);
+    Serial.println("STOP");
+    anyPressed = true;
     delay(250);
   }
   else if (digitalRead(blind_mode) == LOW) {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Blind Mode");
+    displayMessage(1);
     Serial.println("PLAY:blind");
-    pressed = true;
+    anyPressed = true;
     delay(250);
   }
   else if (digitalRead(child_mode) == LOW) {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Child Mode");
-    Serial.println("Child Mode button pressed!");
-    pressed = true;
+    displayMessage(2);
+    Serial.println("STOP");
+    anyPressed = true;
     delay(250);
   }
   else if (digitalRead(forei_mode) == LOW) {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Foreign Lang");
-    lcd.setCursor(0, 1);
-    lcd.print("Mode");
-    Serial.println("Foreign Language Mode button pressed!");
-    pressed = true;
+    displayMessage(3);
+    Serial.println("STOP");
+    anyPressed = true;
     delay(250);
   }
   else if (digitalRead(forei_eng) == LOW) {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("English");
+    displayMessage(4);
     Serial.println("PLAY:english");
-    pressed = true;
+    anyPressed = true;
     delay(250);
   }
   else if (digitalRead(forei_span) == LOW) {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Spanish");
+    displayMessage(5);
     Serial.println("PLAY:spanish");
-    pressed = true;
+    anyPressed = true;
     delay(250);
   }
   else if (digitalRead(forei_mand) == LOW) {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Mandarin");
+    displayMessage(6);
     Serial.println("PLAY:mandarin");
-    pressed = true;
+    anyPressed = true;
     delay(250);
   }
-
-  if (!pressed) {
-    lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("Select a mode");
-    delay(100);
+  else if (!anyPressed) {
+    displayMessage(7);
   }
 }
