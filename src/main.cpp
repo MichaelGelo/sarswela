@@ -49,33 +49,57 @@ const char* morseTable[] = {
 int lastState = -1;
 bool anyPressed = false;
 bool foreignGate = false;
+bool deafWasPressed = false;  // edge-detect deaf so Morse plays once per press, not while held
 
-void dot() {
-  digitalWrite(relay_pin, LOW);
-  delay(UNIT);
-  digitalWrite(relay_pin, HIGH);
-  delay(UNIT);
+bool otherButtonPressed() {
+  return digitalRead(blind_mode) == LOW ||
+         digitalRead(child_mode) == LOW ||
+         digitalRead(forei_mode) == LOW ||
+         digitalRead(forei_eng)  == LOW ||
+         digitalRead(forei_span) == LOW ||
+         digitalRead(forei_mand) == LOW;
 }
 
-void dash() {
-  digitalWrite(relay_pin, LOW);
-  delay(UNIT * 3);
-  digitalWrite(relay_pin, HIGH);
-  delay(UNIT);
+// Waits ms milliseconds, but returns true early if another button is pressed
+bool interruptibleDelay(unsigned long ms) {
+  unsigned long start = millis();
+  while (millis() - start < ms) {
+    if (otherButtonPressed()) return true;
+  }
+  return false;
 }
 
-void playMorse(const char* text) {
+// Each returns true if interrupted by another button press
+bool dot() {
+  digitalWrite(relay_pin, LOW);
+  if (interruptibleDelay(UNIT))     { digitalWrite(relay_pin, HIGH); return true; }
+  digitalWrite(relay_pin, HIGH);
+  return interruptibleDelay(UNIT);
+}
+
+bool dash() {
+  digitalWrite(relay_pin, LOW);
+  if (interruptibleDelay(UNIT * 3)) { digitalWrite(relay_pin, HIGH); return true; }
+  digitalWrite(relay_pin, HIGH);
+  return interruptibleDelay(UNIT);
+}
+
+bool playMorse(const char* text) {
   for (int i = 0; text[i] != '\0'; i++) {
     char c = toupper(text[i]);
-    if (c == ' ') { delay(UNIT * 7); continue; }
+    if (c == ' ') {
+      if (interruptibleDelay(UNIT * 7)) return true;
+      continue;
+    }
     if (c < 'A' || c > 'Z') continue;
     const char* pattern = morseTable[c - 'A'];
     for (int j = 0; pattern[j] != '\0'; j++) {
-      if (pattern[j] == '.') dot();
-      else                   dash();
+      if (pattern[j] == '.') { if (dot())  return true; }
+      else                   { if (dash()) return true; }
     }
-    delay(UNIT * 3);
+    if (interruptibleDelay(UNIT * 3)) return true;
   }
+  return false;
 }
 
 void displayMessage(int state) {
@@ -123,7 +147,8 @@ void setup() {
 }
 
 void loop() {
-  if (digitalRead(deaf_mode) == LOW) {
+  if (digitalRead(deaf_mode) == LOW && !deafWasPressed) {
+    deafWasPressed = true;
     foreignGate = false;
     displayMessage(0);
     Serial.println("STOP");
@@ -175,4 +200,6 @@ void loop() {
   else if (!anyPressed) {
     displayMessage(7);
   }
+
+  if (digitalRead(deaf_mode) == HIGH) deafWasPressed = false;  // re-arm on release
 }
