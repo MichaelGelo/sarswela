@@ -11,7 +11,48 @@
 #define forei_span 9
 #define forei_mand 10
 
+#define relay_pin 7
+
 LiquidCrystal_I2C lcd(0x27,  16, 2);
+
+#define UNIT 150
+
+void dot() {
+  digitalWrite(relay_pin, LOW);
+  delay(UNIT);
+  digitalWrite(relay_pin, HIGH);
+  delay(UNIT);
+}
+
+void dash() {
+  digitalWrite(relay_pin, LOW);
+  delay(UNIT * 3);
+  digitalWrite(relay_pin, HIGH);
+  delay(UNIT);
+}
+
+void letterGap() {
+  delay(UNIT * 2);
+}
+
+void morseSarswela() {
+  // S = ...
+  dot(); dot(); dot(); letterGap();
+  // A = .-
+  dot(); dash(); letterGap();
+  // R = .-.
+  dot(); dash(); dot(); letterGap();
+  // S = ...
+  dot(); dot(); dot(); letterGap();
+  // W = .--
+  dot(); dash(); dash(); letterGap();
+  // E = .
+  dot(); letterGap();
+  // L = .-..
+  dot(); dash(); dot(); dot(); letterGap();
+  // A = .-
+  dot(); dash();
+}
 
 int lastState = -1;
 bool anyPressed = false;
@@ -52,6 +93,9 @@ void setup() {
   pinMode(forei_span, INPUT_PULLUP);
   pinMode(forei_mand, INPUT_PULLUP);
 
+  pinMode(relay_pin, OUTPUT);
+  digitalWrite(relay_pin, HIGH);
+
   lcd.init();
   lcd.clear();
   lcd.backlight();
@@ -64,6 +108,9 @@ void loop() {
     displayMessage(0);
     Serial.println("STOP");
     anyPressed = true;
+    digitalWrite(relay_pin, LOW);
+    delay(500);
+    digitalWrite(relay_pin, HIGH);
     delay(250);
   }
   else if (digitalRead(blind_mode) == LOW) {
