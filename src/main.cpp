@@ -17,6 +17,35 @@ LiquidCrystal_I2C lcd(0x27,  16, 2);
 
 #define UNIT 150
 
+const char* morseTable[] = {
+  ".-",   // A
+  "-...", // B
+  "-.-.", // C
+  "-..",  // D
+  ".",    // E
+  "..-.", // F
+  "--.",  // G
+  "....", // H
+  "..",   // I
+  ".---", // J
+  "-.-",  // K
+  ".-..", // L
+  "--",   // M
+  "-.",   // N
+  "---",  // O
+  ".--.", // P
+  "--.-", // Q
+  ".-.",  // R
+  "...",  // S
+  "-",    // T
+  "..-",  // U
+  "...-", // V
+  ".--",  // W
+  "-..-", // X
+  "-.--", // Y
+  "--.."  // Z
+};
+
 void dot() {
   digitalWrite(relay_pin, LOW);
   delay(UNIT);
@@ -31,27 +60,22 @@ void dash() {
   delay(UNIT);
 }
 
-void letterGap() {
-  delay(UNIT * 2);
-}
+void playMorse(const char* text) {
+  for (int i = 0; text[i] != '\0'; i++) {
+    char c = toupper(text[i]);
+    if (c == ' ') {
+      delay(UNIT * 7);
+      continue;
+    }
+    if (c < 'A' || c > 'Z') continue;
 
-void morseSarswela() {
-  // S = ...
-  dot(); dot(); dot(); letterGap();
-  // A = .-
-  dot(); dash(); letterGap();
-  // R = .-.
-  dot(); dash(); dot(); letterGap();
-  // S = ...
-  dot(); dot(); dot(); letterGap();
-  // W = .--
-  dot(); dash(); dash(); letterGap();
-  // E = .
-  dot(); letterGap();
-  // L = .-..
-  dot(); dash(); dot(); dot(); letterGap();
-  // A = .-
-  dot(); dash();
+    const char* pattern = morseTable[c - 'A'];
+    for (int j = 0; pattern[j] != '\0'; j++) {
+      if (pattern[j] == '.') dot();
+      else dash();
+    }
+    delay(UNIT * 3);
+  }
 }
 
 int lastState = -1;
@@ -108,9 +132,7 @@ void loop() {
     displayMessage(0);
     Serial.println("STOP");
     anyPressed = true;
-    digitalWrite(relay_pin, LOW);
-    delay(500);
-    digitalWrite(relay_pin, HIGH);
+    playMorse("Sarswela");
     delay(250);
   }
   else if (digitalRead(blind_mode) == LOW) {
