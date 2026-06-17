@@ -1,12 +1,11 @@
 import serial
 import serial.tools.list_ports
-import pygame
+import sounddevice as sd
+import soundfile as sf
 import time
 import os
 
-pygame.mixer.init()
-
-SOUNDS_PATH = r"D:\download\Work Life\Robotics\button_v2\Sounds"
+SOUNDS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Sounds")
 
 audio_files = {
     "PLAY:blind":    "Blind.wav",
@@ -15,7 +14,6 @@ audio_files = {
     "PLAY:mandarin": "Mandarin.wav",
 }
 
-# Auto-detect Arduino port
 def find_arduino_port():
     ports = serial.tools.list_ports.comports()
     for port in ports:
@@ -41,20 +39,21 @@ while True:
         print(f"Received: {line}")
 
         if line == "STOP":
-            pygame.mixer.music.stop()
+            sd.stop()
             print("Stopped.")
         elif line in audio_files:
             filename = os.path.join(SOUNDS_PATH, audio_files[line])
             if os.path.exists(filename):
-                pygame.mixer.music.stop()
-                pygame.mixer.music.load(filename)
-                pygame.mixer.music.play()
+                sd.stop()
+                data, samplerate = sf.read(filename)
+                sd.play(data, samplerate)
                 print(f"Playing: {filename}")
             else:
                 print(f"Audio file not found: {filename}")
 
     except KeyboardInterrupt:
         print("\nStopped.")
+        sd.stop()
         ser.close()
         break
     except Exception as e:

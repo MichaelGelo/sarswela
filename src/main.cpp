@@ -46,41 +46,60 @@ const char* morseTable[] = {
   "--.."  // Z
 };
 
-void dot() {
-  digitalWrite(relay_pin, LOW);
-  delay(UNIT);
-  digitalWrite(relay_pin, HIGH);
-  delay(UNIT);
+int lastState = -1;
+bool anyPressed = false;
+bool foreignGate = false;
+
+bool otherButtonPressed() {
+  return digitalRead(blind_mode) == LOW ||
+         digitalRead(child_mode) == LOW ||
+         digitalRead(forei_mode) == LOW ||
+         digitalRead(forei_eng)  == LOW ||
+         digitalRead(forei_span) == LOW ||
+         digitalRead(forei_mand) == LOW;
 }
 
-void dash() {
-  digitalWrite(relay_pin, LOW);
-  delay(UNIT * 3);
-  digitalWrite(relay_pin, HIGH);
-  delay(UNIT);
+// Returns true if another button was pressed during the wait
+bool interruptibleDelay(unsigned long ms) {
+  unsigned long start = millis();
+  while (millis() - start < ms) {
+    if (otherButtonPressed()) return true;
+  }
+  return false;
 }
 
-void playMorse(const char* text) {
+bool dot() {
+  digitalWrite(relay_pin, LOW);
+  if (interruptibleDelay(UNIT))       { digitalWrite(relay_pin, HIGH); return true; }
+  digitalWrite(relay_pin, HIGH);
+  return interruptibleDelay(UNIT);
+}
+
+bool dash() {
+  digitalWrite(relay_pin, LOW);
+  if (interruptibleDelay(UNIT * 3))   { digitalWrite(relay_pin, HIGH); return true; }
+  digitalWrite(relay_pin, HIGH);
+  return interruptibleDelay(UNIT);
+}
+
+bool playMorse(const char* text) {
   for (int i = 0; text[i] != '\0'; i++) {
     char c = toupper(text[i]);
     if (c == ' ') {
-      delay(UNIT * 7);
+      if (interruptibleDelay(UNIT * 7)) return true;
       continue;
     }
     if (c < 'A' || c > 'Z') continue;
 
     const char* pattern = morseTable[c - 'A'];
     for (int j = 0; pattern[j] != '\0'; j++) {
-      if (pattern[j] == '.') dot();
-      else dash();
+      if (pattern[j] == '.') { if (dot())  return true; }
+      else                   { if (dash()) return true; }
     }
-    delay(UNIT * 3);
+    if (interruptibleDelay(UNIT * 3)) return true;
   }
+  return false;
 }
-
-int lastState = -1;
-bool anyPressed = false;
-bool foreignGate = false;
 
 void displayMessage(int state) {
   if (state == lastState) return;
@@ -133,6 +152,7 @@ void loop() {
     Serial.println("STOP");
     anyPressed = true;
     playMorse("Sarswela");
+    digitalWrite(relay_pin, HIGH); // ensure relay is off whether interrupted or finished
     delay(250);
   }
   else if (digitalRead(blind_mode) == LOW) {

@@ -42,7 +42,7 @@ An Arduino-based assistive device that plays audio cues for different accessibil
 | Software | Version | Purpose |
 |---|---|---|
 | VS Code | Latest | Code editor and PlatformIO host |
-| Python | 3.11 (recommended) | Runs the audio player script |
+| Python | 3.11+ (3.14 supported) | Runs the audio player script |
 | PlatformIO IDE (VS Code extension) | Latest | Compiles and uploads Arduino code |
 | Git (optional) | Latest | To clone the repo |
 
@@ -63,9 +63,9 @@ An Arduino-based assistive device that plays audio cues for different accessibil
 
 ## Step 2 — Install Python
 
-> Python 3.11 is recommended because it matches the path already used in `launch_audio.py`.
+> Python 3.11 or newer is supported. If you are on Python 3.14+, skip `pygame` — use `sounddevice` and `soundfile` instead (Step 3 covers this).
 
-1. Go to [https://www.python.org/downloads/release/python-3110](https://www.python.org/downloads/release/python-3110)
+1. Go to [https://www.python.org/downloads](https://www.python.org/downloads)
 2. Scroll down and download **Windows installer (64-bit)**
 3. Run the installer
 4. **IMPORTANT:** Check **"Add Python to PATH"** at the bottom of the first screen before clicking Install
@@ -84,23 +84,26 @@ You should see something like `Python 3.11.x`.
 
 ## Step 3 — Install Python Libraries
 
-This project uses two Python libraries. Open a terminal (`cmd` or PowerShell) and run these two commands one at a time:
+This project uses three Python libraries. Open a terminal (`cmd` or PowerShell) and run these commands one at a time:
 
 ```
 pip install pyserial
-pip install pygame
+pip install sounddevice soundfile
 ```
 
 Wait for each to finish before running the next.
+
+> **Note:** `pygame` is not used. It does not support Python 3.12+ on Windows without a pre-built wheel, so this project uses `sounddevice` and `soundfile` instead — both install cleanly on any Python version.
 
 **Verify they installed:**
 
 ```
 pip show pyserial
-pip show pygame
+pip show sounddevice
+pip show soundfile
 ```
 
-Both should print info about the package without errors.
+Each should print info about the package without errors.
 
 ---
 
@@ -236,7 +239,7 @@ All buttons are wired between their pin and **GND** (internal pull-up resistors 
 ## How It Works
 
 1. When a button is pressed, the Arduino displays the mode on the LCD and sends a command over Serial (e.g., `PLAY:blind`, `STOP`)
-2. The Python `audio_player.py` script reads those serial commands and plays the matching WAV file from the `Sounds` folder using `pygame`
+2. The Python `audio_player.py` script reads those serial commands and plays the matching WAV file from the `Sounds` folder using `sounddevice` and `soundfile`
 3. In **Deaf Mode**, the Arduino also plays the word "Sarswela" in Morse code via the relay
 4. The **Foreign Language** button is a gate — you must press it first, then press English / Spanish / Mandarin to trigger audio
 
@@ -248,7 +251,7 @@ All buttons are wired between their pin and **GND** (internal pull-up resistors 
 |---|---|
 | Arduino not detected | Install CH340 driver (Step 5) |
 | `pip` not found | Python was not added to PATH — reinstall Python with PATH option checked |
-| `ModuleNotFoundError: pygame` | Run `pip install pygame` |
+| `ModuleNotFoundError: sounddevice` | Run `pip install sounddevice soundfile` |
 | Audio player says "file not found" | Update `SOUNDS_PATH` in `audio_player.py` (Step 8) |
 | Audio player doesn't open after upload | Update `PYTHON` path in `launch_audio.py` (Step 7) |
 | LCD shows nothing | Check I2C address — try `0x3F` instead of `0x27` in `main.cpp` line 16 |
