@@ -50,55 +50,32 @@ int lastState = -1;
 bool anyPressed = false;
 bool foreignGate = false;
 
-bool otherButtonPressed() {
-  return digitalRead(blind_mode) == LOW ||
-         digitalRead(child_mode) == LOW ||
-         digitalRead(forei_mode) == LOW ||
-         digitalRead(forei_eng)  == LOW ||
-         digitalRead(forei_span) == LOW ||
-         digitalRead(forei_mand) == LOW;
-}
-
-// Returns true if another button was pressed during the wait
-bool interruptibleDelay(unsigned long ms) {
-  unsigned long start = millis();
-  while (millis() - start < ms) {
-    if (otherButtonPressed()) return true;
-  }
-  return false;
-}
-
-bool dot() {
+void dot() {
   digitalWrite(relay_pin, LOW);
-  if (interruptibleDelay(UNIT))       { digitalWrite(relay_pin, HIGH); return true; }
+  delay(UNIT);
   digitalWrite(relay_pin, HIGH);
-  return interruptibleDelay(UNIT);
+  delay(UNIT);
 }
 
-bool dash() {
+void dash() {
   digitalWrite(relay_pin, LOW);
-  if (interruptibleDelay(UNIT * 3))   { digitalWrite(relay_pin, HIGH); return true; }
+  delay(UNIT * 3);
   digitalWrite(relay_pin, HIGH);
-  return interruptibleDelay(UNIT);
+  delay(UNIT);
 }
 
-bool playMorse(const char* text) {
+void playMorse(const char* text) {
   for (int i = 0; text[i] != '\0'; i++) {
     char c = toupper(text[i]);
-    if (c == ' ') {
-      if (interruptibleDelay(UNIT * 7)) return true;
-      continue;
-    }
+    if (c == ' ') { delay(UNIT * 7); continue; }
     if (c < 'A' || c > 'Z') continue;
-
     const char* pattern = morseTable[c - 'A'];
     for (int j = 0; pattern[j] != '\0'; j++) {
-      if (pattern[j] == '.') { if (dot())  return true; }
-      else                   { if (dash()) return true; }
+      if (pattern[j] == '.') dot();
+      else                   dash();
     }
-    if (interruptibleDelay(UNIT * 3)) return true;
+    delay(UNIT * 3);
   }
-  return false;
 }
 
 void displayMessage(int state) {
@@ -150,9 +127,10 @@ void loop() {
     foreignGate = false;
     displayMessage(0);
     Serial.println("STOP");
+    Serial.flush();  // wait for TX to finish before relay starts — prevents noise corrupting serial
     anyPressed = true;
     playMorse("Sarswela");
-    digitalWrite(relay_pin, HIGH); // ensure relay is off whether interrupted or finished
+    digitalWrite(relay_pin, HIGH);
     delay(250);
   }
   else if (digitalRead(blind_mode) == LOW) {

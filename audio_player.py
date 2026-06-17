@@ -21,13 +21,17 @@ def find_arduino_port():
             return port.device
     return None
 
+def open_serial(port):
+    ser = serial.Serial(port, 9600, timeout=1)
+    time.sleep(2)
+    return ser
+
 port = find_arduino_port()
 if not port:
     port = input("Arduino port not found. Enter manually (e.g. COM3): ").strip()
 
 print(f"Connecting to {port}...")
-ser = serial.Serial(port, 9600)
-time.sleep(2)  # wait for Arduino to reset
+ser = open_serial(port)
 print("Ready. Listening for button presses...\n")
 
 while True:
@@ -56,5 +60,26 @@ while True:
         sd.stop()
         ser.close()
         break
+    except serial.SerialException:
+        # Relay switching browns out the USB-serial chip and corrupts the
+        # COM port. Silently close and reopen so playback isn't disrupted.
+        try:
+            ser.close()
+        except Exception:
+            pass
+        time.sleep(1)
+        for attempt in range(10):
+            try:
+                ser = open_serial(port)
+                try:
+                    ser.reset_input_buffer()
+                except Exception:
+                    pass
+                break
+            except serial.SerialException:
+                time.sleep(1)
+        else:
+            print("Could not reconnect to the Arduino. Exiting.")
+            break
     except Exception as e:
         print(f"Error: {e}")
