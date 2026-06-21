@@ -9,6 +9,7 @@ SOUNDS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Sounds")
 
 audio_files = {
     "PLAY:blind":    "Blind.mp3",
+    "PLAY:child":    "Child.mp3",
     "PLAY:english":  "English.mp3",
     "PLAY:spanish":  "Spanish.mp3",
     "PLAY:mandarin": "Mandarin.mp3",

@@ -168,7 +168,7 @@ void loop() {
   else if (digitalRead(child_mode) == LOW) {
     foreignGate = false;
     displayMessage(2);
-    Serial.println("STOP");
+    Serial.println("PLAY:child");
     anyPressed = true;
     delay(250);
   }
