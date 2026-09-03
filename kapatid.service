@@ -1,0 +1,17 @@
+[Unit]
+Description=KAPATID-VIBE controller
+After=sound.target
+Wants=sound.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/kapatid-pi
+ExecStart=/home/pi/kapatid-pi/venv/bin/python /home/pi/kapatid-pi/kapatid.py
+Restart=on-failure
+RestartSec=3
+# Give ALSA a moment to enumerate the USB audio adapter before we grab it.
+ExecStartPre=/bin/sleep 5
+
+[Install]
+WantedBy=multi-user.target

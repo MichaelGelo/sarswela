@@ -1,258 +1,264 @@
-# Button V2 — Assistive Device Controller
+# PIKAPATID v3
 
-An Arduino-based assistive device that plays audio cues for different accessibility modes (deaf, blind, child, foreign language) and outputs Morse code via a relay. A Python script listens over serial and plays the corresponding WAV audio file.
+Raspberry Pi 4B controller for the KAPATID-VIBE assistive device. Eight buttons
+select a mode; each mode shows a line on a 16x2 LCD and plays an audio clip.
+Deaf Mode additionally buzzes "Sarswela" in Morse code on a vibration motor,
+and Child Mode lights an LED strip.
 
----
+Ported from an Arduino sketch plus a separate Python audio player into one
+Python program. v3 replaces the TB6612FNG motor driver with a 3-pin coin
+motor module and adds the Child Mode light.
 
-## Table of Contents
+## What changed since v2
 
-1. [Hardware Requirements](#hardware-requirements)
-2. [Software Requirements](#software-requirements)
-3. [Step 1 — Install VS Code](#step-1--install-vs-code)
-4. [Step 2 — Install Python](#step-2--install-python)
-5. [Step 3 — Install Python Libraries](#step-3--install-python-libraries)
-6. [Step 4 — Install PlatformIO in VS Code](#step-4--install-platformio-in-vs-code)
-7. [Step 5 — Install Arduino Drivers](#step-5--install-arduino-drivers)
-8. [Step 6 — Clone or Copy the Project](#step-6--clone-or-copy-the-project)
-9. [Step 7 — Update the Python Path in launch_audio.py](#step-7--update-the-python-path-in-launch_audiopy)
-10. [Step 8 — Update the Sounds Path in audio_player.py](#step-8--update-the-sounds-path-in-audio_playerpy)
-11. [Step 9 — Upload the Code to Arduino](#step-9--upload-the-code-to-arduino)
-12. [Wiring Reference](#wiring-reference)
-13. [How It Works](#how-it-works)
-
----
-
-## Hardware Requirements
-
-| Component | Details |
-|---|---|
-| Arduino Uno | Any genuine or clone (CH340 chip) |
-| I2C LCD (16x2) | Address `0x27` (most common) |
-| Relay Module | Single-channel, 5V active-LOW |
-| Push Buttons | 7 total (see wiring table below) |
-| Jumper Wires | Male-to-male and male-to-female |
-| USB-A to USB-B Cable | To connect Arduino to PC |
-| PC / Laptop | Windows 10 or 11 |
-| Speaker or Buzzer | Connected to relay output |
-
----
-
-## Software Requirements
-
-| Software | Version | Purpose |
+| | v2 | v3 |
 |---|---|---|
-| VS Code | Latest | Code editor and PlatformIO host |
-| Python | 3.11+ (3.14 supported) | Runs the audio player script |
-| PlatformIO IDE (VS Code extension) | Latest | Compiles and uploads Arduino code |
-| Git (optional) | Latest | To clone the repo |
+| Motor driver | TB6612FNG, 4 GPIO pins | 3-pin module, 1 GPIO pin |
+| Motor supply | 5V via driver | 5V direct to module |
+| Child Mode light | none | LED strip via relay on GPIO16 |
+| Braking | active brake via TB6612 | coast (mass stops in ~30ms) |
 
----
+GPIO6, 13 and 26 are freed by the motor change and are now unused.
 
-## Step 1 — Install VS Code
+## Hardware
 
-1. Go to [https://code.visualstudio.com](https://code.visualstudio.com)
-2. Click **Download for Windows**
-3. Run the installer (`.exe`)
-4. During install, check these options:
-   - **Add to PATH**
-   - **Register Code as an editor for supported file types**
-5. Click **Install**, then **Finish**
-6. Open VS Code — you should see the welcome screen
+- Raspberry Pi 4 Model B, 64-bit Raspberry Pi OS (Bookworm)
+- 16x2 character LCD with I2C backpack, address 0x27
+- 8 momentary push buttons
+- 10mm coin vibration motor on a 3-pin module (VCC / IN / GND)
+- USB LED strip, 9 LEDs, ~160mA
+- 1-channel relay module, low-level trigger (SRD-05VDC-SL-C)
+- Powered speaker or headphones on the 3.5mm jack
 
----
+## Pinout
 
-## Step 2 — Install Python
+All numbers are BCM GPIO; physical pin numbers are in parentheses.
 
-> Python 3.11 or newer is supported. If you are on Python 3.14+, skip `pygame` — use `sounddevice` and `soundfile` instead (Step 3 covers this).
+### LCD -- I2C
 
-1. Go to [https://www.python.org/downloads](https://www.python.org/downloads)
-2. Scroll down and download **Windows installer (64-bit)**
-3. Run the installer
-4. **IMPORTANT:** Check **"Add Python to PATH"** at the bottom of the first screen before clicking Install
-5. Click **Install Now**
-6. When done, click **Close**
-
-**Verify Python installed correctly** — open a terminal (`Win + R`, type `cmd`, press Enter) and run:
-
-```
-python --version
-```
-
-You should see something like `Python 3.11.x`.
-
----
-
-## Step 3 — Install Python Libraries
-
-This project uses three Python libraries. Open a terminal (`cmd` or PowerShell) and run these commands one at a time:
-
-```
-pip install pyserial
-pip install sounddevice soundfile
-```
-
-Wait for each to finish before running the next.
-
-> **Note:** `pygame` is not used. It does not support Python 3.12+ on Windows without a pre-built wheel, so this project uses `sounddevice` and `soundfile` instead — both install cleanly on any Python version.
-
-**Verify they installed:**
-
-```
-pip show pyserial
-pip show sounddevice
-pip show soundfile
-```
-
-Each should print info about the package without errors.
-
----
-
-## Step 4 — Install PlatformIO in VS Code
-
-1. Open VS Code
-2. Click the **Extensions** icon on the left sidebar (or press `Ctrl+Shift+X`)
-3. In the search box, type `PlatformIO`
-4. Click the result named **PlatformIO IDE** (by PlatformIO)
-5. Click **Install** and wait — it downloads several tools in the background (this can take 5–10 minutes the first time)
-6. When done, VS Code will prompt you to **Reload** — click it
-7. You should now see a PlatformIO icon (alien head) in the left sidebar
-
----
-
-## Step 5 — Install Arduino Drivers
-
-If your Arduino is a clone with a **CH340 chip** (very common for cheaper boards), Windows may not detect it automatically.
-
-1. Download the CH340 driver: search for **"CH340 driver Windows"** and download from the manufacturer site, or use [https://www.wch-ic.com/downloads/CH341SER_EXE.html](https://www.wch-ic.com/downloads/CH341SER_EXE.html)
-2. Run the installer and click **Install**
-3. Plug in your Arduino via USB
-4. Open **Device Manager** (`Win + X` → Device Manager)
-5. Look under **Ports (COM & LPT)** — you should see something like `USB-SERIAL CH340 (COM3)`
-6. Note the COM number (e.g., `COM3`) — you will need this if auto-detection fails
-
-> If your board says "Arduino" in Device Manager without any CH340 driver, it is genuine and already works.
-
----
-
-## Step 6 — Clone or Copy the Project
-
-**Option A — Copy from USB/Drive:**
-
-Copy the entire `button_v2` folder to your new laptop. Suggested path:
-
-```
-D:\download\Work Life\Robotics\button_v2
-```
-
-> The path matters because `audio_player.py` has a hardcoded path to the `Sounds` folder. You can put it anywhere but you will need to update the path (see Step 8).
-
-**Option B — Clone from Git (if using GitHub):**
-
-```
-git clone <your-repo-url>
-```
-
----
-
-## Step 7 — Update the Python Path in launch_audio.py
-
-The file [launch_audio.py](launch_audio.py) has a hardcoded path to your Python executable. On a new laptop this path will be different.
-
-1. Find where Python is installed on the new laptop. Open `cmd` and run:
-
-```
-where python
-```
-
-Copy the full path it shows (e.g., `C:\Users\YourName\AppData\Local\...`).
-
-2. Open [launch_audio.py](launch_audio.py) in VS Code
-3. Find this line near the top:
-
-```python
-PYTHON = r"C:\Users\MichaelGelo\AppData\Local\Microsoft\WindowsApps\PythonSoftwareFoundation.Python.3.11_qbz5n2kfra8p0\python.exe"
-```
-
-4. Replace the path with the one you copied from `where python`
-
----
-
-## Step 8 — Update the Sounds Path in audio_player.py
-
-The file [audio_player.py](audio_player.py) also has a hardcoded path to the `Sounds` folder.
-
-1. Open [audio_player.py](audio_player.py) in VS Code
-2. Find this line:
-
-```python
-SOUNDS_PATH = r"D:\download\Work Life\Robotics\button_v2\Sounds"
-```
-
-3. Update it to match where you put the project folder on the new laptop. Example:
-
-```python
-SOUNDS_PATH = r"C:\Users\YourName\Documents\button_v2\Sounds"
-```
-
-> Make sure the `Sounds` folder contains `Blind.wav`, `English.wav`, `Spanish.wav`, and `Mandarin.wav`.
-
----
-
-## Step 9 — Upload the Code to Arduino
-
-1. Plug your Arduino Uno into the laptop via USB
-2. Open VS Code and open the `button_v2` folder (`File` → `Open Folder`)
-3. Click the PlatformIO alien icon in the sidebar
-4. Under **Project Tasks → uno**, click **Upload**
-5. PlatformIO will compile the code and upload it to the Arduino
-6. After upload completes, `launch_audio.py` will automatically open a new terminal window running `audio_player.py`
-7. The audio player will auto-detect the Arduino's COM port and start listening
-
-> If the audio player window says "Arduino port not found", type the COM port manually (e.g., `COM3`) and press Enter.
-
----
-
-## Wiring Reference
-
-| Button Function | Arduino Pin |
+| LCD | Pi |
 |---|---|
-| Deaf Mode | D2 |
-| Blind Mode | D3 |
-| Child Mode | D4 |
-| Foreign Language Mode | D5 |
-| Foreign — English | D8 |
-| Foreign — Spanish | D9 |
-| Foreign — Mandarin | D10 |
-| Relay (Morse output) | D7 |
+| VCC | 5V (2) |
+| GND | GND (6) |
+| SDA | GPIO2 (3) |
+| SCL | GPIO3 (5) |
 
-| LCD (I2C) | Arduino |
+### Buttons
+
+Each button bridges its GPIO to any ground pin. Internal pull-ups are enabled
+in software, so no external resistors are needed.
+
+| Button | GPIO | Physical |
+|---|---|---|
+| Deaf | 17 | 11 |
+| Blind | 27 | 13 |
+| Child | 22 | 15 |
+| Foreign | 23 | 16 |
+| English | 24 | 18 |
+| Spanish | 25 | 22 |
+| Mandarin | 5 | 29 |
+| Shutdown | 21 | 40 |
+
+### Vibration motor -- 3-pin module
+
+| Module | Pi |
 |---|---|
-| SDA | A4 |
-| SCL | A5 |
-| VCC | 5V |
-| GND | GND |
+| IN | GPIO12 (32) |
+| VCC | 5V (4) |
+| GND | GND (39) |
 
-All buttons are wired between their pin and **GND** (internal pull-up resistors are used — no external resistors needed).
+The module carries its own switching transistor and flyback diode, so GPIO12
+supplies only a logic signal -- a few milliamps. The motor's 80-100mA comes
+off the 5V rail, shared with the relay coil and the LCD.
+**Do not connect a bare motor to a GPIO pin.**
 
----
+The 5V rail puts about 4.7V at the motor, over its 3V rating, so `MORSE_LEVEL`
+is capped at `0.85` and the burst texture keeps the *average* near 2.8V. The
+peak is what the skin feels; the average is what heats the motor. Those two
+numbers are tied together by `MOTOR_SUPPLY_V` in `config.py`, and three tests
+enforce the relationship -- change the rail without changing the level and the
+suite fails with the value you should have used.
 
-## How It Works
+### Child Mode light -- relay module
 
-1. When a button is pressed, the Arduino displays the mode on the LCD and sends a command over Serial (e.g., `PLAY:blind`, `STOP`)
-2. The Python `audio_player.py` script reads those serial commands and plays the matching WAV file from the `Sounds` folder using `sounddevice` and `soundfile`
-3. In **Deaf Mode**, the Arduino also plays the word "Sarswela" in Morse code via the relay
-4. The **Foreign Language** button is a gate — you must press it first, then press English / Spanish / Mandarin to trigger audio
+Coil side:
 
----
+| Module | Pi |
+|---|---|
+| VCC | 5V (4) |
+| GND | GND (34) |
+| IN | GPIO16 (36) |
+
+VCC must be 5V -- the SRD-05VDC-SL-C coil will not pull in reliably at 3.3V.
+
+Contact side -- wire the relay into the strip's positive leg, using **NO**
+(normally open) so the strip is dark when idle:
+
+| Terminal | To |
+|---|---|
+| COM | 3.3V (17), or an external 5V supply |
+| NO | strip + |
+| -- | strip - to the same supply's ground |
+
+Relay contacts are isolated, so if you power the strip externally its current
+never touches the Pi. Only the coil side needs a shared ground.
+
+## Install
+
+```bash
+cd ~
+mkdir -p sarswela && cd sarswela
+# unzip pikapatid_v3.zip here
+
+chmod +x setup.sh && ./setup.sh      # dependencies, I2C
+
+./venv/bin/python test_logic.py      # 25 tests, no hardware needed
+i2cdetect -y 1                       # expect 27
+
+sudo cp kapatid.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now kapatid
+sudo systemctl status kapatid         # want: active (running)
+```
+
+`audio_player.py` and `launch_audio.py` from your existing install are not in
+this archive and are not needed by `kapatid.py`, which plays audio itself.
+Leave them in place if you still use them standalone.
+
+Audio clips belong in the directory named by `AUDIO_DIR` in `config.py`, using
+the filenames listed in `CLIPS`.
+
+## Tuning
+
+Everything adjustable lives in `config.py`.
+
+| Setting | Default | Notes |
+|---|---|---|
+| `MOTOR_SUPPLY_V` | `5.0` | Which rail VCC is on. Must match reality -- it sets the safe ceiling on `MORSE_LEVEL`. |
+| `MORSE_LEVEL` | `0.85` | Motor duty during Morse. `0.85` at 5V; use `1.0` if you move VCC to 3.3V. |
+| `KICK_LEVEL` | `1.0` | Brief full-power pulse that breaks stiction. |
+| `KICK_TIME` | `0.060` | Length of that pulse, seconds. |
+| `MORSE_UNIT` | `0.200` | One Morse time unit. Raise to ~0.200 if the pattern is hard to feel. |
+| `MORSE_TEXTURE` | `True` | Chop each dot and dash into a burst train instead of a steady hold. Costs no amplitude and feels considerably stronger. |
+| `MORSE_TEXTURE_HZ` | `14` | Bursts per second. 10-15 throbs hardest; above ~40 the mass cannot follow and the gain disappears. |
+| `MORSE_TEXTURE_DUTY` | `0.70` | Fraction of each burst period driven. Lower digs deeper troughs; below ~0.5 the mass never reaches speed. |
+| `PIN_CHILD_LIGHT` | `16` | Set to `None` to disable the light entirely. |
+| `CHILD_LIGHT_ACTIVE_LOW` | `True` | `True` for a low-trigger relay; `False` for a ULN2003 or NPN transistor. |
+| `PWM_MODE` | `software` | Leave it. Hardware PWM claims the same peripheral as the 3.5mm jack. |
+| `BOUNCE_TIME` | `0.04` | Latency paid on every press -- nothing responds until it elapses. Raise only if one press registers twice. |
+
+After any edit: `sudo systemctl restart kapatid`
+
+## If the buzz feels weak
+
+Roughly in order of how much difference they make:
+
+1. **Mounting.** A motor dangling on wires has nothing to react against and
+   feels feeble regardless of voltage. Bond it flat to a rigid surface or press
+   it against skin. This usually matters more than any setting.
+2. **`MORSE_TEXTURE = True`** (the default). Skin adapts to steady vibration
+   within a few hundred milliseconds -- the receptors respond to change, so a
+   constant buzz fades even at full power. Chopping each element into bursts
+   stops that adaptation. It gives up no amplitude, which makes it the one
+   free improvement here. Tune `MORSE_TEXTURE_HZ` down toward 10 for a deeper
+   throb, up toward 25 for a rougher buzz.
+3. **`MORSE_LEVEL = 1.0`.** At 3.3V that is within the motor's rating, so
+   there is no reason to hold back.
+4. **Longer `KICK_TIME`** so each dot starts at full power.
+5. **Raise `MORSE_UNIT`** to 0.200 so each element lasts longer.
+6. **Already on 5V** in this configuration. Going further means raising
+   `MORSE_LEVEL` toward 1.0 and spending motor lifespan for amplitude -- the
+   tests will fail if you do, which is the point: it should be a decision,
+   not an accident.
+
+If all of that is exhausted and it is still too weak, the motor is the limit,
+not the tuning. Some 3-pin breakouts include a series resistor that caps the
+current whatever you feed them; a bare 10mm motor driven through the relay, or
+a physically larger ERM, is the answer for anything that must be felt through
+clothing.
 
 ## Troubleshooting
 
-| Problem | Fix |
+**Service will not start.** Read the traceback:
+
+```bash
+sudo journalctl -u kapatid -n 50 --no-pager
+```
+
+**`GPIOPinInUse: pin GPIO16 is already in use`.** Two objects claiming one pin
+in the same process. Check for a duplicated line:
+
+```bash
+grep -c "hardware.Light()" kapatid.py     # must be 1
+```
+
+If it is more than 1, delete the extras.
+
+**LCD backlit but blank.** The program is not running -- check the service
+status. Lit-but-blank means power reached the backpack but nothing wrote to it.
+
+**Motor silent but the LCD changes mode.** The logic is fine; test the motor
+alone. Stop the service first or the pin will be busy:
+
+```bash
+sudo systemctl stop kapatid
+./venv/bin/python -c "
+from gpiozero import PWMOutputDevice
+import time
+m = PWMOutputDevice(12, frequency=1000)
+m.value = 1.0; time.sleep(2); m.value = 0; m.close()
+"
+sudo systemctl start kapatid
+```
+
+**Light on constantly, or inverted.** The relay is on NC instead of NO -- move
+the wire to the other outer terminal. If it is backwards in software, flip
+`CHILD_LIGHT_ACTIVE_LOW`.
+
+**Light lags the button.** Three things add up here, and all three are fixed
+in v3: `BOUNCE_TIME` is latency on every press, the LCD's I2C write takes tens
+of milliseconds, and the light used to be updated *after* both. It is now set
+first in `on_press()`, before cancelling Morse and before the LCD. If it still
+lags, lower `BOUNCE_TIME` -- but not below about 0.02, or a single press starts
+registering twice.
+
+**Relay pulls in but never releases.** Not a wiring fault. A low-level-trigger
+module running its coil from 5V wants its IN pin driven near 5V to switch off;
+a Pi pin only reaches 3.3V, which can leave the module's input transistor
+partly conducting. Replace the relay with an NPN transistor (`CHILD_LIGHT_ACTIVE_LOW
+= False`), which switches on a high signal and has no threshold problem.
+
+**No audio.**
+
+```bash
+aplay -l
+amixer sset 'Master' 90%
+```
+
+**LCD not on the bus.** `i2cdetect -y 1` showing nothing means I2C is off or
+the wiring is wrong. Enable it with `sudo raspi-config` -> Interface Options ->
+I2C. If it shows `3f` instead of `27`, set `LCD_ADDRESS` in `config.py`.
+
+## Tests
+
+```bash
+./venv/bin/python test_logic.py
+```
+
+25 tests, no hardware required -- they mock the GPIO layer. They cover mode
+transitions, the Morse table, the foreign-language gate, clip selection, light
+behaviour, and pin-assignment sanity (no duplicates, nothing on the I2C pins).
+Run them before deploying any config change; a duplicate pin assignment gets
+caught here rather than at 2am before a performance.
+
+## Files
+
+| File | Purpose |
 |---|---|
-| Arduino not detected | Install CH340 driver (Step 5) |
-| `pip` not found | Python was not added to PATH — reinstall Python with PATH option checked |
-| `ModuleNotFoundError: sounddevice` | Run `pip install sounddevice soundfile` |
-| Audio player says "file not found" | Update `SOUNDS_PATH` in `audio_player.py` (Step 8) |
-| Audio player doesn't open after upload | Update `PYTHON` path in `launch_audio.py` (Step 7) |
-| LCD shows nothing | Check I2C address — try `0x3F` instead of `0x27` in `main.cpp` line 16 |
-| Wrong COM port | Open Device Manager, check Ports section, enter correct COM number manually |
+| `kapatid.py` | Main program. Run this. |
+| `hardware.py` | GPIO, LCD, motor, light, audio. Mocks itself off-Pi. |
+| `config.py` | Every pin and timing constant. |
+| `test_logic.py` | 25 tests, no hardware needed. |
+| `kapatid.service` | systemd unit for autostart. |
+| `setup.sh` | Installs dependencies, enables I2C. |
+| `pikapatid_v3.html` | Build and wiring guide. Open in a browser. |

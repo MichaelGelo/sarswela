@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PIKAPATID v3 Build Guide</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
+<style>
+  :root {
+    --ground: #f6f8f9;
+    --surface: #ffffff;
+    --surface-2: #eef1f3;
+    --ink: #15181c;
+    --ink-2: #545f6a;
+    --ink-3: #87909b;
+    --rule: #dfe4e8;
+    --rule-2: #c8d0d6;
+    --accent: #0f6e7a;
+    --accent-soft: #e0eef0;
+    --btn: #2a6a3d;
+    --btn-soft: #e2efe6;
+    --mot: #86570a;
+    --mot-soft: #faefda;
+    --pwr: #a13030;
+    --pwr-soft: #f8e8e6;
+    --shadow: 0 1px 2px rgba(20,28,36,.06);
+    --measure: 68ch;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #14171a; --surface: #1c2024; --surface-2: #23282d;
+      --ink: #e7eaed; --ink-2: #9fa9b2; --ink-3: #6d777f;
+      --rule: #2b3136; --rule-2: #3a4249;
+      --accent: #4fc0cc; --accent-soft: #12312f;
+      --btn: #6fbf88; --btn-soft: #172e1e;
+      --mot: #ddaa5b; --mot-soft: #2f2611;
+      --pwr: #e08079; --pwr-soft: #33201e;
+      --shadow: 0 1px 2px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #14171a; --surface: #1c2024; --surface-2: #23282d;
+    --ink: #e7eaed; --ink-2: #9fa9b2; --ink-3: #6d777f;
+    --rule: #2b3136; --rule-2: #3a4249;
+    --accent: #4fc0cc; --accent-soft: #12312f;
+    --btn: #6fbf88; --btn-soft: #172e1e;
+    --mot: #ddaa5b; --mot-soft: #2f2611;
+    --pwr: #e08079; --pwr-soft: #33201e;
+    --shadow: 0 1px 2px rgba(0,0,0,.3);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+    font-size: 15.5px; line-height: 1.65; -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+
+  .masthead { border-bottom: 2px solid var(--ink); padding-bottom: 1.25rem; margin-bottom: 2rem; }
+  .eyebrow {
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px;
+    letter-spacing: .13em; text-transform: uppercase; color: var(--accent); margin: 0 0 .6rem;
+  }
+  h1 {
+    font-family: Archivo, system-ui, sans-serif; font-weight: 700;
+    font-size: clamp(1.9rem, 4.5vw, 2.7rem); line-height: 1.05;
+    letter-spacing: -.02em; margin: 0 0 .5rem; text-wrap: balance;
+  }
+  .standfirst { color: var(--ink-2); max-width: var(--measure); margin: 0; }
+
+  .facts {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1px; background: var(--rule); border: 1px solid var(--rule);
+    border-radius: 3px; overflow: hidden; margin: 0 0 2rem;
+  }
+  .fact { background: var(--surface); padding: .7rem .85rem; }
+  .fact dt {
+    font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--ink-3); margin: 0 0 .15rem;
+  }
+  .fact dd {
+    margin: 0; font-family: "IBM Plex Mono", monospace; font-size: 13px;
+    font-weight: 500; word-break: break-all;
+  }
+
+  nav.toc {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 3px;
+    padding: .9rem 1.1rem; margin: 0 0 3rem; box-shadow: var(--shadow);
+  }
+  nav.toc p {
+    font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--ink-3); margin: 0 0 .5rem;
+  }
+  nav.toc ol {
+    margin: 0; padding: 0; list-style: none;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: .2rem 1.2rem;
+  }
+  nav.toc li { font-size: 14px; display: flex; gap: .5rem; }
+  nav.toc .tn {
+    font-family: "IBM Plex Mono", monospace; color: var(--ink-3);
+    font-variant-numeric: tabular-nums; flex-shrink: 0;
+  }
+  nav.toc a { color: var(--ink); text-decoration: none; border-bottom: 1px solid var(--rule-2); }
+  nav.toc a:hover, nav.toc a:focus-visible { color: var(--accent); border-color: var(--accent); }
+
+  section { margin-bottom: 3.25rem; scroll-margin-top: 1rem; }
+  .stage-head {
+    display: flex; align-items: baseline; gap: .85rem;
+    border-bottom: 1px solid var(--rule-2); padding-bottom: .5rem; margin-bottom: 1.35rem;
+  }
+  .stage-num {
+    font-family: "IBM Plex Mono", monospace; font-size: 12px; font-weight: 500;
+    color: var(--accent); background: var(--accent-soft);
+    padding: .2rem .45rem; border-radius: 2px; flex-shrink: 0;
+  }
+  h2 {
+    font-family: Archivo, system-ui, sans-serif; font-weight: 600; font-size: 1.32rem;
+    letter-spacing: -.01em; margin: 0; text-wrap: balance;
+  }
+  h3 {
+    font-family: Archivo, system-ui, sans-serif; font-weight: 600; font-size: 1rem;
+    margin: 1.9rem 0 .6rem;
+  }
+  .substage {
+    display: flex; align-items: baseline; gap: .7rem; margin: 2rem 0 .7rem;
+  }
+  .substage h3 { margin: 0; }
+  .tag {
+    font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 500;
+    padding: .18rem .45rem; border-radius: 2px; flex-shrink: 0;
+  }
+  .tag.a { color: var(--accent); background: var(--accent-soft); }
+  .tag.b { color: var(--btn); background: var(--btn-soft); }
+  .tag.c { color: var(--mot); background: var(--mot-soft); }
+
+  p { max-width: var(--measure); margin: 0 0 .9rem; }
+  .note { color: var(--ink-2); font-size: 14.5px; }
+
+  code {
+    font-family: "IBM Plex Mono", monospace; font-size: .88em;
+    background: var(--surface-2); padding: .1em .35em; border-radius: 2px;
+  }
+  pre {
+    background: var(--surface); border: 1px solid var(--rule);
+    border-left: 2px solid var(--accent); border-radius: 0 3px 3px 0;
+    padding: .85rem 1rem; overflow-x: auto; margin: 0 0 1rem; box-shadow: var(--shadow);
+  }
+  pre.laptop { border-left-color: var(--mot); }
+  pre code { background: none; padding: 0; font-size: 13px; line-height: 1.75; display: block; }
+  .cmt { color: var(--ink-3); }
+  .where {
+    font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--ink-3); display: block; margin-bottom: .4rem;
+  }
+
+  .callout {
+    border: 1px solid var(--rule); border-radius: 3px; padding: .8rem 1rem;
+    margin: 0 0 1.1rem; font-size: 14.5px; max-width: var(--measure); background: var(--surface);
+  }
+  .callout p { margin: 0; max-width: none; }
+  .callout p + p { margin-top: .55rem; }
+  .callout.warn { background: var(--mot-soft); border-color: var(--mot); color: var(--mot); }
+  .callout.ok { background: var(--btn-soft); border-color: var(--btn); color: var(--btn); }
+  .callout .lbl {
+    font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .1em;
+    text-transform: uppercase; display: block; margin-bottom: .25rem; opacity: .85;
+  }
+
+  .tw { overflow-x: auto; margin: 0 0 1.2rem; }
+  table {
+    border-collapse: collapse; width: 100%; font-size: 14px;
+    background: var(--surface); border: 1px solid var(--rule);
+  }
+  th {
+    font-family: "IBM Plex Mono", monospace; font-size: 10.5px; letter-spacing: .09em;
+    text-transform: uppercase; text-align: left; color: var(--ink-3); font-weight: 500;
+    padding: .5rem .7rem; border-bottom: 1px solid var(--rule-2); white-space: nowrap;
+  }
+  td { padding: .48rem .7rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td.p {
+    font-family: "IBM Plex Mono", monospace; font-variant-numeric: tabular-nums;
+    font-weight: 500; white-space: nowrap;
+  }
+
+  .legend { display: flex; flex-wrap: wrap; gap: .35rem 1rem; font-size: 12.5px; color: var(--ink-2); margin: 0 0 .85rem; }
+  .legend span { display: flex; align-items: center; gap: .35rem; }
+  .sw { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .map {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 3px;
+    padding: 1rem; overflow-x: auto; box-shadow: var(--shadow); margin-bottom: 1rem;
+  }
+  .grid {
+    display: grid; grid-template-columns: 1fr auto auto 1fr; gap: 2px 0;
+    font-family: "IBM Plex Mono", monospace; font-size: 11.5px; min-width: 470px;
+  }
+  .grid > div { padding: .18rem .5rem; white-space: nowrap; }
+  .l { text-align: right; } .r { text-align: left; }
+  .n {
+    text-align: center; font-variant-numeric: tabular-nums; color: var(--ink-3);
+    background: var(--surface-2); min-width: 26px;
+  }
+  .u-lcd { color: var(--accent); font-weight: 500; }
+  .u-btn { color: var(--btn); font-weight: 500; }
+  .u-mot { color: var(--mot); font-weight: 500; }
+  .u-pwr { color: var(--pwr); }
+  .u-off { color: var(--ink-3); opacity: .5; }
+
+  ul.plain { max-width: var(--measure); padding-left: 1.2rem; margin: 0 0 1rem; }
+  ul.plain li { margin-bottom: .35rem; }
+
+  .foot {
+    border-top: 1px solid var(--rule-2); margin-top: 3.5rem; padding-top: 1rem;
+    font-size: 13px; color: var(--ink-3); font-family: "IBM Plex Mono", monospace;
+  }
+  strong { font-weight: 600; }
+  a { color: var(--accent); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  :root { --lit: #6d4aa6; --lit-soft: #ece5f7; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --lit: #b69ae0; --lit-soft: #241a33; }
+  }
+  :root[data-theme="dark"] { --lit: #b69ae0; --lit-soft: #241a33; }
+  .u-lit { background: var(--lit-soft); color: var(--lit); }
+  .tag.e { background: var(--lit-soft); color: var(--lit); }
+  .delta { width:100%; border-collapse:collapse; margin:1.1rem 0; }
+  .delta th, .delta td { padding:.5rem .7rem; border-bottom:1px solid var(--rule); text-align:left; }
+  .delta thead th { font-size:.76rem; text-transform:uppercase; letter-spacing:.06em; color:var(--ink-3); }
+  .delta td:first-child { color:var(--ink-2); }
+  .gone { color:var(--ink-3); text-decoration:line-through; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="eyebrow">Raspberry Pi 4 Model B · headless build · v3</p>
+    <h1>PIKAPATID v3 Build Guide</h1>
+    <p class="standfirst">Everything from a blank SD card to a device that boots, narrates, buzzes Morse and lights up on its own, with no laptop attached. v3 drops the TB6612FNG for a 3-pin coin motor module and adds the Child Mode light.</p>
+  </header>
+
+  <dl class="facts">
+    <div class="fact"><dt>Hostname</dt><dd>sarswela</dd></div>
+    <div class="fact"><dt>User</dt><dd>sarswela</dd></div>
+    <div class="fact"><dt>IP range</dt><dd>192.168.137.x</dd></div>
+    <div class="fact"><dt>LCD address</dt><dd>0x27</dd></div>
+    <div class="fact"><dt>Audio out</dt><dd>3.5mm jack</dd></div>
+    <div class="fact"><dt>Tests</dt><dd>25, no hardware</dd></div>
+  </dl>
+
+  <section id="s0">
+    <div class="stage-head"><span class="stage-num">00</span><h2>What changed since v2</h2></div>
+    <p>If you built v2, three things move. Everything else — buttons, LCD, audio, the Morse table — is untouched.</p>
+    <table class="delta">
+      <thead><tr><th></th><th>v2</th><th>v3</th></tr></thead>
+      <tbody>
+        <tr><td>Motor driver</td><td class="gone">TB6612FNG, 4 GPIO pins</td><td>3-pin module, 1 GPIO pin</td></tr>
+        <tr><td>Motor supply</td><td class="gone">5V</td><td>3.3V</td></tr>
+        <tr><td>Child Mode light</td><td class="gone">none</td><td>LED strip via relay on GPIO16</td></tr>
+        <tr><td>Braking</td><td class="gone">active brake</td><td>coast, ~30ms</td></tr>
+      </tbody>
+    </table>
+    <p>The motor change frees <code>GPIO6</code>, <code>GPIO13</code> and <code>GPIO26</code>. Losing the active brake costs nothing here: the eccentric mass stops well inside one Morse time unit, so the pattern still reads correctly.</p>
+  </section>
+
+  <nav class="toc">
+    <p>Contents</p>
+    <ol>
+      <li><span class="tn">01</span><a href="#s1">Flash the SD card</a></li>
+      <li><span class="tn">02</span><a href="#s2">Find the Pi and connect</a></li>
+      <li><span class="tn">03</span><a href="#s3">Get the code onto the Pi</a></li>
+      <li><span class="tn">04</span><a href="#s4">Install and verify</a></li>
+      <li><span class="tn">05</span><a href="#s5">Wiring</a></li>
+      <li><span class="tn">06</span><a href="#s6">Autostart on boot</a></li>
+      <li><span class="tn">07</span><a href="#s7">Making the buzz felt</a></li>
+      <li><span class="tn">08</span><a href="#s8">Day-to-day commands</a></li>
+      <li><span class="tn">09</span><a href="#s9">When something breaks</a></li>
+      <li><span class="tn">10</span><a href="#s10">Before a performance</a></li>
+    </ol>
+  </nav>
+
+  <section id="s1">
+    <div class="stage-head"><span class="stage-num">01</span><h2>Flash the SD card</h2></div>
+    <p>In Raspberry Pi Imager: device <strong>Raspberry Pi 4</strong>, OS <strong>Raspberry Pi OS (64-bit)</strong>. 64-bit is not a preference — <code>soundfile</code> has no 32-bit ARM wheel, and the system libsndfile on older releases cannot decode MP3 at all.</p>
+    <p>Under Customisation set hostname <code>sarswela</code>, the same username and password, SSH enabled with password authentication, and the Wi-Fi credentials for whichever network the Pi will join.</p>
+    <div class="callout warn">
+      <span class="lbl">Copy the SSID by hand, character for character</span>
+      <p>A hotspot named <code>Mi 15T</code> is not <code>Mi15T</code>. One missing space costs an evening — the Pi boots fine and simply never appears on the network, with nothing to read because you have no monitor. Force <strong>2.4GHz</strong> and <strong>WPA2</strong>, and turn hotspot power saving <strong>off</strong>; it shuts down when nothing is connected, and first boot takes minutes before the Pi even tries to join.</p>
+    </div>
+    <p class="note">After writing, Windows offers to format the card because it cannot read the Linux partition. Close that dialog — formatting wipes the OS you just wrote.</p>
+  </section>
+
+  <section id="s2">
+    <div class="stage-head"><span class="stage-num">02</span><h2>Find the Pi and connect</h2></div>
+    <p>Boot and wait. First boot resizes the filesystem and reboots itself, so give it three or four minutes before expecting anything.</p>
+    <pre><code>ssh sarswela@sarswela.local</code></pre>
+    <p>If mDNS does not resolve, find the address from the hotspot's client list and use it directly:</p>
+    <pre><code>ssh sarswela@192.168.137.113</code></pre>
+    <div class="callout">
+      <span class="lbl">Nothing appears at all</span>
+      <p>Re-flash rather than debug blind — you cannot read the Pi's logs without a monitor, and a wrong SSID looks identical to a dead card. If a re-flash also fails to appear, suspect the card itself: check Windows Disk Management, and if the card does not enumerate there, it has failed at hardware level and no amount of re-flashing will help.</p>
+    </div>
+  </section>
+
+  <section id="s3">
+    <div class="stage-head"><span class="stage-num">03</span><h2>Get the code onto the Pi</h2></div>
+    <p>Run <code>scp</code> from a terminal <strong>on your laptop</strong> — not inside the SSH session. This is the single most common mistake: from the Pi's shell, <code>D:\...</code> is not a path, and <code>scp</code> reads <code>D:</code> as a hostname and reports <code>Could not resolve hostname d</code>.</p>
+    <pre><code>scp -r "D:\path\to\pikapatid_v3\*" "sarswela@192.168.137.113:~/sarswela/"</code></pre>
+    <p>Quote both arguments. Paths with spaces break otherwise, in ways whose error messages point nowhere near the real cause.</p>
+    <p>Then, back in the SSH session, confirm what landed and when:</p>
+    <pre><code>ls -la ~/sarswela/*.py
+date</code></pre>
+    <p class="note">Compare the file timestamps against <code>date</code>. A file dated yesterday means the copy silently failed and you are about to debug code that was never transferred.</p>
+  </section>
+
+  <section id="s4">
+    <div class="stage-head"><span class="stage-num">04</span><h2>Install and verify</h2></div>
+    <pre><code>cd ~/sarswela
+chmod +x setup.sh &amp;&amp; ./setup.sh</code></pre>
+    <p><code>setup.sh</code> creates the virtualenv, installs dependencies and enables I2C. Then run the tests <strong>before touching any hardware</strong>:</p>
+    <pre><code>./venv/bin/python test_logic.py</code></pre>
+    <p>25 tests, all mocked — no GPIO, no LCD, no motor. They check mode transitions, the Morse table, the foreign-language gate, clip selection, light behaviour, and pin sanity: no duplicate assignments, nothing squatting on the I2C pins. <span class="ok">Run these after every config edit.</span> A duplicated pin is caught here in a second, or at 2am before a performance.</p>
+    <p>With the LCD wired, confirm it answers on the bus:</p>
+    <pre><code>i2cdetect -y 1</code></pre>
+    <p>You want <code>27</code>. If you get <code>3f</code>, set <code>LCD_ADDRESS</code> in <code>config.py</code> to match. Nothing at all means I2C is off or SDA/SCL are swapped.</p>
+  </section>
+
+  <section id="s5">
+    <div class="stage-head"><span class="stage-num">05</span><h2>Wiring</h2></div>
+    <p>Build in stages and test after each. Wiring everything then powering on once tells you only that something is wrong, not what.</p>
+
+    <h3>The 40-pin header, as used by this build</h3>
+    <div class="legend">
+      <span><span class="sw" style="background:var(--accent)"></span>LCD (I²C)</span>
+      <span><span class="sw" style="background:var(--btn)"></span>Buttons</span>
+      <span><span class="sw" style="background:var(--mot)"></span>Motor</span>
+      <span><span class="sw" style="background:var(--lit)"></span>Child light</span>
+      <span><span class="sw" style="background:var(--pwr)"></span>Power / ground</span>
+      <span><span class="sw" style="background:var(--ink-3)"></span>Unused</span>
+    </div>
+    <div class="map">
+      <div class="grid">
+        <div class="l u-off">3.3V · free</div><div class="n">1</div><div class="n">2</div><div class="r u-pwr">5V · LCD VCC</div>
+        <div class="l u-lcd">GPIO2 · SDA</div><div class="n">3</div><div class="n">4</div><div class="r u-pwr">5V · relay + motor</div>
+        <div class="l u-lcd">GPIO3 · SCL</div><div class="n">5</div><div class="n">6</div><div class="r u-pwr">GND · LCD</div>
+        <div class="l u-off">GPIO4</div><div class="n">7</div><div class="n">8</div><div class="r u-off">GPIO14</div>
+        <div class="l u-pwr">GND · buttons</div><div class="n">9</div><div class="n">10</div><div class="r u-off">GPIO15</div>
+        <div class="l u-btn">GPIO17 · deaf</div><div class="n">11</div><div class="n">12</div><div class="r u-off">GPIO18</div>
+        <div class="l u-btn">GPIO27 · blind</div><div class="n">13</div><div class="n">14</div><div class="r u-pwr">GND</div>
+        <div class="l u-btn">GPIO22 · child</div><div class="n">15</div><div class="n">16</div><div class="r u-btn">GPIO23 · foreign</div>
+        <div class="l u-lit">3.3V · strip COM</div><div class="n">17</div><div class="n">18</div><div class="r u-btn">GPIO24 · english</div>
+        <div class="l u-off">GPIO10</div><div class="n">19</div><div class="n">20</div><div class="r u-pwr">GND</div>
+        <div class="l u-off">GPIO9</div><div class="n">21</div><div class="n">22</div><div class="r u-btn">GPIO25 · spanish</div>
+        <div class="l u-off">GPIO11</div><div class="n">23</div><div class="n">24</div><div class="r u-off">GPIO8</div>
+        <div class="l u-pwr">GND</div><div class="n">25</div><div class="n">26</div><div class="r u-off">GPIO7</div>
+        <div class="l u-off">ID_SD</div><div class="n">27</div><div class="n">28</div><div class="r u-off">ID_SC</div>
+        <div class="l u-btn">GPIO5 · mandarin</div><div class="n">29</div><div class="n">30</div><div class="r u-pwr">GND</div>
+        <div class="l u-off">GPIO6 · free</div><div class="n">31</div><div class="n">32</div><div class="r u-mot">GPIO12 · motor IN</div>
+        <div class="l u-off">GPIO13 · free</div><div class="n">33</div><div class="n">34</div><div class="r u-pwr">GND · relay</div>
+        <div class="l u-off">GPIO19</div><div class="n">35</div><div class="n">36</div><div class="r u-lit">GPIO16 · relay IN</div>
+        <div class="l u-off">GPIO26 · free</div><div class="n">37</div><div class="n">38</div><div class="r u-off">GPIO20</div>
+        <div class="l u-pwr">GND · motor</div><div class="n">39</div><div class="n">40</div><div class="r u-btn">GPIO21 · shutdown</div>
+      </div>
+    </div>
+
+    <div class="substage"><span class="tag a">Stage A</span><h3>LCD — four wires</h3></div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Backpack</th><th>Pi</th><th>Physical pin</th></tr></thead>
+        <tbody>
+          <tr><td>SDA</td><td class="p">GPIO2</td><td class="p">3</td></tr>
+          <tr><td>SCL</td><td class="p">GPIO3</td><td class="p">5</td></tr>
+          <tr><td>VCC</td><td class="p">5V</td><td class="p">2</td></tr>
+          <tr><td>GND</td><td class="p">GND</td><td class="p">6</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>VCC must be <strong>5V</strong>, not 3.3V — a PCF8574 backpack often will not answer on 3.3V. A lit backlight with a blank screen means power arrived but nothing wrote to it, which is a software symptom, not a wiring one.</p>
+
+    <div class="substage"><span class="tag b">Stage B</span><h3>Buttons — seven modes, plus shutdown</h3></div>
+    <p>Each button bridges its GPIO to <em>any</em> ground pin. Internal pull-ups are enabled in software, so no external resistors.</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Button</th><th>GPIO</th><th>Physical pin</th></tr></thead>
+        <tbody>
+          <tr><td>Deaf</td><td class="p">GPIO17</td><td class="p">11</td></tr>
+          <tr><td>Blind</td><td class="p">GPIO27</td><td class="p">13</td></tr>
+          <tr><td>Child</td><td class="p">GPIO22</td><td class="p">15</td></tr>
+          <tr><td>Foreign</td><td class="p">GPIO23</td><td class="p">16</td></tr>
+          <tr><td>English</td><td class="p">GPIO24</td><td class="p">18</td></tr>
+          <tr><td>Spanish</td><td class="p">GPIO25</td><td class="p">22</td></tr>
+          <tr><td>Mandarin</td><td class="p">GPIO5</td><td class="p">29</td></tr>
+          <tr><td>Shutdown</td><td class="p">GPIO21</td><td class="p">40</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">English, Spanish and Mandarin do nothing until Foreign has been pressed. That gate is deliberate — it mirrors <code>foreignGate</code> in the original sketch — so a language button that "does not work" may simply be behaving correctly.</p>
+
+    <div class="substage"><span class="tag c">Stage C</span><h3>Vibration motor — three wires, no driver</h3></div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Module</th><th>Pi</th><th>Physical pin</th></tr></thead>
+        <tbody>
+          <tr><td>IN</td><td class="p">GPIO12</td><td class="p">32</td></tr>
+          <tr><td>VCC</td><td class="p">5V</td><td class="p">4</td></tr>
+          <tr><td>GND</td><td class="p">GND</td><td class="p">39</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The module carries its own switching transistor and flyback diode. GPIO12 therefore supplies only a logic signal — a few milliamps — while the motor's 80–100mA comes off the 5V rail, shared with the relay coil and the LCD. That division is what makes a direct connection safe here when a bare motor's would not be.</p>
+    <div class="callout warn">
+      <span class="lbl">Never wire a bare motor to a GPIO pin</span>
+      <p>A pin sources 16mA. A coin motor wants 80–100mA and, worse, kicks back an inductive spike when it stops. Without the module's transistor and diode you are destroying the pin, possibly the Pi. If your module has only two usable pins because IN and VCC were soldered together, separate them — bridged, the motor runs permanently and its full current flows through whatever feeds that joint.</p>
+    </div>
+    <div class="callout">
+      <span class="lbl">Why 5V works here, at 0.85</span>
+      <p>The 5V rail puts about 4.7V at a motor rated for 3V. Two things make that safe. <strong>Peaks do not cook motors, averages do</strong> — and with the burst texture the motor is driven only 70% of the time within an element, so a dash averages 0.85 × 0.70 = 0.60 duty, about 2.8V, just under rating. <strong>And Morse is intermittent</strong>: "Sarswela" is a few seconds of buzzing, not continuous running.</p>
+      <p>Meanwhile the peak still reaches ~4.0V, and the peak is what the skin feels. That is the entire reason to be on 5V — more amplitude per burst at no extra heating. <code>MOTOR_SUPPLY_V</code> in <code>config.py</code> ties the two numbers together, and three tests enforce it: move the rail without moving the level and the suite fails, quoting the value you should have used.</p>
+    </div>
+    <p>Test it alone, with the service stopped so the pin is free:</p>
+    <pre><code>sudo systemctl stop kapatid
+./venv/bin/python -c "
+from gpiozero import PWMOutputDevice
+import time
+m = PWMOutputDevice(12, frequency=1000)
+m.value = 1.0; time.sleep(2); m.value = 0; m.close()
+"
+sudo systemctl start kapatid</code></pre>
+
+    <div class="substage"><span class="tag e">Stage D</span><h3>Child Mode light — relay module</h3></div>
+    <p>Nine LEDs draw about 160mA, ten times what a pin allows, so the strip needs something between it and the Pi. A low-level-trigger relay module does the job and isolates the strip's current completely.</p>
+    <p><strong>Coil side</strong> — this is what the Pi drives:</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Module</th><th>Pi</th><th>Physical pin</th></tr></thead>
+        <tbody>
+          <tr><td>IN</td><td class="p">GPIO16</td><td class="p">36</td></tr>
+          <tr><td>VCC</td><td class="p">5V</td><td class="p">4</td></tr>
+          <tr><td>GND</td><td class="p">GND</td><td class="p">34</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>VCC must be <strong>5V</strong>. The <code>SRD-05VDC-SL-C</code> coil will not pull in reliably at 3.3V. Both 5V header pins are the same rail, so sharing one with the LCD is fine — the coil's 80mA and the LCD's 100mA sit comfortably inside the header's budget.</p>
+    <p><strong>Contact side</strong> — the middle terminal is COM; check the silkscreen for which outer one is NO. Use <strong>NO</strong> so the strip is dark when idle, and wire the relay into the strip's positive leg:</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Terminal</th><th>To</th></tr></thead>
+        <tbody>
+          <tr><td>COM</td><td class="p">3.3V (pin 17), or an external supply +</td></tr>
+          <tr><td>NO</td><td class="p">strip +</td></tr>
+          <tr><td>—</td><td class="p">strip − to that same supply's ground</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      <span class="lbl">Worth exploiting</span>
+      <p>Relay contacts are electrically isolated, so if you power the strip from a phone charger or power bank instead, its 160mA never touches the Pi at all — cut the strip's <strong>+</strong> line and route both ends through COM and NO. Only the coil side needs a shared ground with the Pi; the contact side needs none.</p>
+    </div>
+    <p>Then set the two flags in <code>config.py</code> to match a low-trigger part:</p>
+    <pre><code>PIN_CHILD_LIGHT = 16
+CHILD_LIGHT_ACTIVE_LOW = True</code></pre>
+    <p>Set <code>PIN_CHILD_LIGHT = None</code> to disable the light entirely — useful while the relay is not yet wired, since the code then never touches GPIO16. If you swap the relay for a ULN2003 channel or a plain NPN transistor + 1kΩ base resistor, set <code>CHILD_LIGHT_ACTIVE_LOW = False</code>: both light the load on a <em>high</em> pin, draw under a milliamp, and make no noise.</p>
+    <p class="note">Lit constantly, or inverted? The wire is on NC instead of NO. Move it to the other outer terminal rather than inverting the flag — the flag should describe the part, not paper over the wiring.</p>
+
+    <div class="substage"><span class="tag d">Stage E</span><h3>Audio — the 3.5mm jack</h3></div>
+    <p>Powered speaker or headphones into the jack. Confirm the output device and raise the level:</p>
+    <pre><code>aplay -l
+amixer sset 'Master' 90%</code></pre>
+    <div class="callout warn">
+      <span class="lbl">Do not enable hardware PWM</span>
+      <p>The 3.5mm jack <em>is</em> the PWM peripheral. Setting <code>PWM_MODE = "hardware"</code> claims it and the audio stops. Leave it on <code>software</code> — thread-timed PWM is entirely adequate, since an eccentric mass has 20–50ms of mechanical inertia and cannot respond to timing jitter anyway. A test enforces this combination is never configured.</p>
+    </div>
+  </section>
+
+  <section id="s6">
+    <div class="stage-head"><span class="stage-num">06</span><h2>Autostart on boot</h2></div>
+    <p>So the device runs without a laptop:</p>
+    <pre><code>sudo cp kapatid.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now kapatid
+sudo systemctl status kapatid</code></pre>
+    <p>You want <code>active (running)</code>. Anything else, read the traceback — <code>status</code> truncates, <code>journalctl</code> does not:</p>
+    <pre><code>sudo journalctl -u kapatid -n 50 --no-pager</code></pre>
+    <p class="note">The unit sleeps 5 seconds before starting, giving I2C and the audio device time to come up. Without that delay it wins the race about half the time and fails the other half, which is worse than failing consistently.</p>
+  </section>
+
+  <section id="s7">
+    <div class="stage-head"><span class="stage-num">07</span><h2>Making the buzz felt</h2></div>
+    <p>A weak buzz is rarely a power problem. Amplitude is capped by the motor and the rail, but <em>perceived</em> strength is not — and that is where the room is.</p>
+    <div class="callout">
+      <span class="lbl">Why a steady buzz fades</span>
+      <p>The skin receptors that sense vibration respond to <strong>change</strong>, not to sustained pressure. Hold a constant buzz and they adapt within a few hundred milliseconds: the motor is still turning at full power, and you stop noticing it. It is why a long dash can feel weaker at its end than at its start.</p>
+    </div>
+    <p><code>MORSE_TEXTURE</code> exploits that. Instead of holding each dot and dash steady, it chops the element into a burst train at <code>MORSE_TEXTURE_HZ</code>. Peak amplitude is unchanged — every burst still reaches <code>MORSE_LEVEL</code> — but the interruptions keep the receptors from tuning it out. Element <em>durations</em> are preserved to within a percent, so the Morse still reads correctly.</p>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Rate</th><th>Feel</th></tr></thead>
+        <tbody>
+          <tr><td class="p">10–15 Hz</td><td>Deep modulation, an insistent throb. Strongest sensation.</td></tr>
+          <tr><td class="p">20–30 Hz</td><td>Shallower; reads as a rough buzz.</td></tr>
+          <tr><td class="p">above 40 Hz</td><td>The mass cannot follow. Feels steady again — no gain.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The eccentric mass needs 20–50ms to spin up or down, which is what puts the sweet spot so low. <code>MORSE_TEXTURE_DUTY</code> sets how much of each period is driven: lower digs the troughs deeper for more contrast, but below about <code>0.5</code> the mass never reaches speed at all.</p>
+    <p>Everything else, in order of how much difference it makes:</p>
+    <ol>
+      <li><strong>Mounting.</strong> A motor dangling on wires has nothing to react against and feels feeble at any voltage. Bond it flat to a rigid part of the enclosure with foam tape or glue, or press it against skin. This routinely matters more than every setting below combined.</li>
+      <li><strong><code>MORSE_LEVEL = 1.0</code>.</strong> At 3.3V that is inside the motor's rating, so there is no reason to hold back.</li>
+      <li><strong>Longer <code>KICK_TIME</code></strong> — <code>0.060</code> — so each element opens at full power. An eccentric mass will not start from rest at low duty; the kick breaks stiction before the level settles.</li>
+      <li><strong>Raise <code>MORSE_UNIT</code></strong> to <code>0.200</code> so each element lasts longer against the skin.</li>
+      <li><strong>Move VCC to 5V</strong> and set <code>MORSE_LEVEL = 0.80</code>. Noticeably stronger, and survivable because Morse is intermittent — but do not run 5V at <code>1.0</code>, and expect to trade motor lifespan for the amplitude.</li>
+    </ol>
+    <div class="callout warn">
+      <span class="lbl">When tuning has run out</span>
+      <p>If all of the above is exhausted and it is still too weak, the motor is the ceiling rather than the settings. Some 3-pin breakouts carry a series resistor that caps the current whatever voltage you feed them — look for a small resistor between the transistor and the motor terminals. A bare 10mm motor switched through the relay, or a physically larger ERM, is the answer for anything that has to be felt through clothing.</p>
+    </div>
+    <p>After any edit, restart and re-test:</p>
+    <pre><code>./venv/bin/python test_logic.py
+sudo systemctl restart kapatid</code></pre>
+  </section>
+
+  <section id="s8">
+    <div class="stage-head"><span class="stage-num">08</span><h2>Day-to-day commands</h2></div>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Task</th><th>Command</th></tr></thead>
+        <tbody>
+          <tr><td>Is it running?</td><td><code>sudo systemctl status kapatid</code></td></tr>
+          <tr><td>Read the log</td><td><code>sudo journalctl -u kapatid -n 50 --no-pager</code></td></tr>
+          <tr><td>Follow live</td><td><code>sudo journalctl -u kapatid -f</code></td></tr>
+          <tr><td>Apply a config change</td><td><code>sudo systemctl restart kapatid</code></td></tr>
+          <tr><td>Free the GPIO for manual tests</td><td><code>sudo systemctl stop kapatid</code></td></tr>
+          <tr><td>Run by hand</td><td><code>./venv/bin/python kapatid.py</code></td></tr>
+          <tr><td>Run the tests</td><td><code>./venv/bin/python test_logic.py</code></td></tr>
+          <tr><td>Stop autostarting</td><td><code>sudo systemctl disable kapatid</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Stop the service before running <code>kapatid.py</code> by hand. Both instances claim the same pins, and the second one dies with <code>GPIOPinInUse</code> — an error that reads like a wiring fault and is not one.</p>
+  </section>
+
+  <section id="s9">
+    <div class="stage-head"><span class="stage-num">09</span><h2>When something breaks</h2></div>
+
+    <h3>Service will not start</h3>
+    <p>Read the traceback first. Guessing from symptoms costs more than the thirty seconds of reading.</p>
+    <pre><code>sudo journalctl -u kapatid -n 50 --no-pager</code></pre>
+
+    <h3><code>GPIOPinInUse: pin GPIO16 is already in use</code></h3>
+    <p>Two objects claiming one pin inside one process. Almost always a duplicated line:</p>
+    <pre><code>grep -c "hardware.Light()" kapatid.py</code></pre>
+    <p>The answer must be <code>1</code>. If it is <code>2</code>, delete the extra. Also check no other process holds the pin, and stop the service before manual tests.</p>
+
+    <h3>The light lags the button</h3>
+    <p>Three delays stack up, and the light used to sit behind all of them. <code>BOUNCE_TIME</code> is paid on every press before anything downstream runs; cancelling a Morse sequence joins its thread; and the LCD's I2C write pushes 32 characters at 100kHz. Setting a GPIO costs microseconds by comparison, so in v3 the light is updated <em>first</em> in <code>on_press()</code> — before the Morse cancel and before the LCD.</p>
+    <p>If it still lags, lower <code>BOUNCE_TIME</code>, but not below about <code>0.02</code> or one press starts registering twice.</p>
+
+    <h3>Relay pulls in but never releases</h3>
+    <p>Not a wiring fault, and no amount of rewiring fixes it. A low-level-trigger module running its coil from 5V expects its IN pin driven near 5V to switch <em>off</em>. A Pi pin reaches only 3.3V, which can leave the module's input transistor partly conducting — so it energises willingly and then never fully lets go.</p>
+    <p>The fix is an NPN transistor instead, which switches on a <em>high</em> signal and so has no threshold to fall short of: <code>GPIO16</code> through a 1kΩ resistor to the base, strip − to the collector, Pi GND to the emitter, strip + to 3.3V. Then set <code>CHILD_LIGHT_ACTIVE_LOW = False</code>.</p>
+
+    <h3>LCD backlit but blank</h3>
+    <p>The program is not running. Power reached the backpack; nothing wrote to it. Check the service status — this is not a wiring fault.</p>
+
+    <h3>Motor silent, but the LCD changes mode</h3>
+    <p>The logic is fine and the button works, so the fault is downstream. Test the motor alone with the Stage C snippet. If it buzzes there, the wiring and pin are good and the problem is config. If it does not, it is the module, its supply, or the joint.</p>
+
+    <h3>Old code keeps coming back</h3>
+    <p><code>unzip -o</code> over the working directory reverts every file to the archive's version, silently discarding your edits. Commit first, and prefer <code>git checkout</code> for restores:</p>
+    <pre><code>git add -A &amp;&amp; git commit -m "working config"</code></pre>
+
+    <h3>No audio</h3>
+    <pre><code>aplay -l
+amixer sset 'Master' 90%</code></pre>
+    <p>Then confirm <code>PWM_MODE</code> is <code>software</code>. Hardware PWM silences the jack.</p>
+
+    <h3>LCD not on the bus</h3>
+    <p><code>i2cdetect -y 1</code> empty means I2C is disabled or SDA/SCL are swapped. Enable it in <code>sudo raspi-config</code> → Interface Options → I2C. If it reports <code>3f</code>, set <code>LCD_ADDRESS</code> to match.</p>
+  </section>
+
+  <section id="s10">
+    <div class="stage-head"><span class="stage-num">10</span><h2>Before a performance</h2></div>
+    <ol>
+      <li>Boot from cold, on the real power supply, with no laptop attached. Booting from a laptop's USB port and then unplugging it is not the same test.</li>
+      <li><code>sudo systemctl status kapatid</code> — <code>active (running)</code>.</li>
+      <li>Press all eight buttons in turn. Watch the LCD, listen for each clip, feel the motor on Deaf, watch the strip on Child.</li>
+      <li>Press Foreign, then each language. Then press a language <em>without</em> Foreign first and confirm it is correctly ignored.</li>
+      <li>Press Deaf, then interrupt mid-Morse with another button. The buzz must stop immediately.</li>
+      <li>Check the motor is still firmly mounted. Adhesive fails, and a loose motor feels like a dead one.</li>
+      <li>Leave it running for ten minutes untouched, then press a button. Nothing should have drifted or died.</li>
+    </ol>
+    <div class="callout">
+      <span class="lbl">Keep a known-good card</span>
+      <p>Image the working SD card and keep the image. Cards fail without warning — one died mid-build here, and no amount of re-flashing brought it back. A spare card with a known-good image turns that from a lost evening into five minutes.</p>
+    </div>
+  </section>
+
+  <p class="foot">PIKAPATID v3 · ported from src/main.cpp and audio_player.py · Arduino Uno + laptop → single Raspberry Pi 4B</p>
+
+</div>
+</body>
+</html>
