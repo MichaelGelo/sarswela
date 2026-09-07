@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PIKAPATID v3 Build Guide</title>
+<title>PIKAPATID v4 Build Guide</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&amp;family=IBM+Plex+Sans:wght@400;500;600&amp;family=IBM+Plex+Mono:wght@400;500&amp;display=swap">
 <style>
   :root {
@@ -236,9 +236,9 @@
 <div class="wrap">
 
   <header class="masthead">
-    <p class="eyebrow">Raspberry Pi 4 Model B · headless build · v3</p>
-    <h1>PIKAPATID v3 Build Guide</h1>
-    <p class="standfirst">Everything from a blank SD card to a device that boots, narrates, buzzes Morse and lights up on its own, with no laptop attached. v3 drops the TB6612FNG for a 3-pin coin motor module and adds the Child Mode light.</p>
+    <p class="eyebrow">Raspberry Pi 4 Model B · headless build · v4</p>
+    <h1>PIKAPATID v4 Build Guide</h1>
+    <p class="standfirst">Everything from a blank SD card to a device that boots, narrates, buzzes Morse and lights up on its own, with no laptop attached. v4 pins the wiring to the real header, fixes the boot service, and swaps Spanish for Indian.</p>
   </header>
 
   <dl class="facts">
@@ -251,18 +251,18 @@
   </dl>
 
   <section id="s0">
-    <div class="stage-head"><span class="stage-num">00</span><h2>What changed since v2</h2></div>
-    <p>If you built v2, three things move. Everything else — buttons, LCD, audio, the Morse table — is untouched.</p>
+    <div class="stage-head"><span class="stage-num">00</span><h2>What changed since v3</h2></div>
+    <p>Small but load-bearing changes. The service file is the one that actually broke a boot.</p>
     <table class="delta">
-      <thead><tr><th></th><th>v2</th><th>v3</th></tr></thead>
+      <thead><tr><th></th><th>v3</th><th>v4</th></tr></thead>
       <tbody>
-        <tr><td>Motor driver</td><td class="gone">TB6612FNG, 4 GPIO pins</td><td>3-pin module, 1 GPIO pin</td></tr>
-        <tr><td>Motor supply</td><td class="gone">5V</td><td>3.3V</td></tr>
-        <tr><td>Child Mode light</td><td class="gone">none</td><td>LED strip via relay on GPIO16</td></tr>
-        <tr><td>Braking</td><td class="gone">active brake</td><td>coast, ~30ms</td></tr>
+        <tr><td>Third language</td><td class="gone">Spanish</td><td>Indian</td></tr>
+        <tr><td>Pin map</td><td class="gone">generic BCM only</td><td>against the real header pins</td></tr>
+        <tr><td><code>kapatid.service</code></td><td class="gone">template, <code>User=pi</code></td><td>correct user and paths</td></tr>
+        <tr><td>Light timing</td><td class="gone">after the LCD write</td><td>first in <code>on_press()</code></td></tr>
       </tbody>
     </table>
-    <p>The motor change frees <code>GPIO6</code>, <code>GPIO13</code> and <code>GPIO26</code>. Losing the active brake costs nothing here: the eccentric mass stops well inside one Morse time unit, so the pattern still reads correctly.</p>
+    <p>The service file is worth dwelling on. v3 shipped an unedited template naming a user <code>pi</code> that does not exist on this Pi. Installing it fails at boot with <code>status=217/USER</code> — and because the program never launches, there is no Python traceback to read, only systemd retrying forever.</p>
   </section>
 
   <nav class="toc">
@@ -337,31 +337,31 @@ chmod +x setup.sh &amp;&amp; ./setup.sh</code></pre>
       <span><span class="sw" style="background:var(--btn)"></span>Buttons</span>
       <span><span class="sw" style="background:var(--mot)"></span>Motor</span>
       <span><span class="sw" style="background:var(--lit)"></span>Child light</span>
-      <span><span class="sw" style="background:var(--pwr)"></span>Power / ground</span>
+      <span><span class="sw" style="background:var(--pwr)"></span>Power / ground in use</span>
       <span><span class="sw" style="background:var(--ink-3)"></span>Unused</span>
     </div>
     <div class="map">
       <div class="grid">
-        <div class="l u-off">3.3V · free</div><div class="n">1</div><div class="n">2</div><div class="r u-pwr">5V · LCD VCC</div>
-        <div class="l u-lcd">GPIO2 · SDA</div><div class="n">3</div><div class="n">4</div><div class="r u-pwr">5V · relay + motor</div>
+        <div class="l u-off">3.3V · free</div><div class="n">1</div><div class="n">2</div><div class="r u-pwr">5V · relay + motor</div>
+        <div class="l u-lcd">GPIO2 · SDA</div><div class="n">3</div><div class="n">4</div><div class="r u-pwr">5V · LCD</div>
         <div class="l u-lcd">GPIO3 · SCL</div><div class="n">5</div><div class="n">6</div><div class="r u-pwr">GND · LCD</div>
         <div class="l u-off">GPIO4</div><div class="n">7</div><div class="n">8</div><div class="r u-off">GPIO14</div>
-        <div class="l u-pwr">GND · buttons</div><div class="n">9</div><div class="n">10</div><div class="r u-off">GPIO15</div>
+        <div class="l u-pwr">GND · common</div><div class="n">9</div><div class="n">10</div><div class="r u-off">GPIO15</div>
         <div class="l u-btn">GPIO17 · deaf</div><div class="n">11</div><div class="n">12</div><div class="r u-off">GPIO18</div>
-        <div class="l u-btn">GPIO27 · blind</div><div class="n">13</div><div class="n">14</div><div class="r u-pwr">GND</div>
+        <div class="l u-btn">GPIO27 · blind</div><div class="n">13</div><div class="n">14</div><div class="r u-off">GND</div>
         <div class="l u-btn">GPIO22 · child</div><div class="n">15</div><div class="n">16</div><div class="r u-btn">GPIO23 · foreign</div>
         <div class="l u-lit">3.3V · strip COM</div><div class="n">17</div><div class="n">18</div><div class="r u-btn">GPIO24 · english</div>
-        <div class="l u-off">GPIO10</div><div class="n">19</div><div class="n">20</div><div class="r u-pwr">GND</div>
-        <div class="l u-off">GPIO9</div><div class="n">21</div><div class="n">22</div><div class="r u-btn">GPIO25 · spanish</div>
+        <div class="l u-off">GPIO10</div><div class="n">19</div><div class="n">20</div><div class="r u-off">GND</div>
+        <div class="l u-off">GPIO9</div><div class="n">21</div><div class="n">22</div><div class="r u-btn">GPIO25 · indian</div>
         <div class="l u-off">GPIO11</div><div class="n">23</div><div class="n">24</div><div class="r u-off">GPIO8</div>
-        <div class="l u-pwr">GND</div><div class="n">25</div><div class="n">26</div><div class="r u-off">GPIO7</div>
+        <div class="l u-off">GND</div><div class="n">25</div><div class="n">26</div><div class="r u-off">GPIO7</div>
         <div class="l u-off">ID_SD</div><div class="n">27</div><div class="n">28</div><div class="r u-off">ID_SC</div>
-        <div class="l u-btn">GPIO5 · mandarin</div><div class="n">29</div><div class="n">30</div><div class="r u-pwr">GND</div>
+        <div class="l u-btn">GPIO5 · mandarin</div><div class="n">29</div><div class="n">30</div><div class="r u-off">GND</div>
         <div class="l u-off">GPIO6 · free</div><div class="n">31</div><div class="n">32</div><div class="r u-mot">GPIO12 · motor IN</div>
-        <div class="l u-off">GPIO13 · free</div><div class="n">33</div><div class="n">34</div><div class="r u-pwr">GND · relay</div>
+        <div class="l u-off">GPIO13 · free</div><div class="n">33</div><div class="n">34</div><div class="r u-pwr">GND · shutdown</div>
         <div class="l u-off">GPIO19</div><div class="n">35</div><div class="n">36</div><div class="r u-lit">GPIO16 · relay IN</div>
         <div class="l u-off">GPIO26 · free</div><div class="n">37</div><div class="n">38</div><div class="r u-off">GPIO20</div>
-        <div class="l u-pwr">GND · motor</div><div class="n">39</div><div class="n">40</div><div class="r u-btn">GPIO21 · shutdown</div>
+        <div class="l u-off">GND</div><div class="n">39</div><div class="n">40</div><div class="r u-btn">GPIO21 · shutdown</div>
       </div>
     </div>
 
@@ -372,7 +372,7 @@ chmod +x setup.sh &amp;&amp; ./setup.sh</code></pre>
         <tbody>
           <tr><td>SDA</td><td class="p">GPIO2</td><td class="p">3</td></tr>
           <tr><td>SCL</td><td class="p">GPIO3</td><td class="p">5</td></tr>
-          <tr><td>VCC</td><td class="p">5V</td><td class="p">2</td></tr>
+          <tr><td>VCC</td><td class="p">5V</td><td class="p">4</td></tr>
           <tr><td>GND</td><td class="p">GND</td><td class="p">6</td></tr>
         </tbody>
       </table>
@@ -390,13 +390,13 @@ chmod +x setup.sh &amp;&amp; ./setup.sh</code></pre>
           <tr><td>Child</td><td class="p">GPIO22</td><td class="p">15</td></tr>
           <tr><td>Foreign</td><td class="p">GPIO23</td><td class="p">16</td></tr>
           <tr><td>English</td><td class="p">GPIO24</td><td class="p">18</td></tr>
-          <tr><td>Spanish</td><td class="p">GPIO25</td><td class="p">22</td></tr>
+          <tr><td>Indian</td><td class="p">GPIO25</td><td class="p">22</td></tr>
           <tr><td>Mandarin</td><td class="p">GPIO5</td><td class="p">29</td></tr>
-          <tr><td>Shutdown</td><td class="p">GPIO21</td><td class="p">40</td></tr>
+          <tr><td>Shutdown</td><td class="p">GPIO21</td><td class="p">40, ground on 34</td></tr>
         </tbody>
       </table>
     </div>
-    <p class="note">English, Spanish and Mandarin do nothing until Foreign has been pressed. That gate is deliberate — it mirrors <code>foreignGate</code> in the original sketch — so a language button that "does not work" may simply be behaving correctly.</p>
+    <p class="note">English, Indian and Mandarin do nothing until Foreign has been pressed. That gate is deliberate — it mirrors <code>foreignGate</code> in the original sketch — so a language button that "does not work" may simply be behaving correctly.</p>
 
     <div class="substage"><span class="tag c">Stage C</span><h3>Vibration motor — three wires, no driver</h3></div>
     <div class="tw">
@@ -404,8 +404,8 @@ chmod +x setup.sh &amp;&amp; ./setup.sh</code></pre>
         <thead><tr><th>Module</th><th>Pi</th><th>Physical pin</th></tr></thead>
         <tbody>
           <tr><td>IN</td><td class="p">GPIO12</td><td class="p">32</td></tr>
-          <tr><td>VCC</td><td class="p">5V</td><td class="p">4</td></tr>
-          <tr><td>GND</td><td class="p">GND</td><td class="p">39</td></tr>
+          <tr><td>VCC</td><td class="p">5V</td><td class="p">2</td></tr>
+          <tr><td>GND</td><td class="p">GND</td><td class="p">9</td></tr>
         </tbody>
       </table>
     </div>
@@ -437,8 +437,8 @@ sudo systemctl start kapatid</code></pre>
         <thead><tr><th>Module</th><th>Pi</th><th>Physical pin</th></tr></thead>
         <tbody>
           <tr><td>IN</td><td class="p">GPIO16</td><td class="p">36</td></tr>
-          <tr><td>VCC</td><td class="p">5V</td><td class="p">4</td></tr>
-          <tr><td>GND</td><td class="p">GND</td><td class="p">34</td></tr>
+          <tr><td>VCC</td><td class="p">5V</td><td class="p">2</td></tr>
+          <tr><td>GND</td><td class="p">GND</td><td class="p">9</td></tr>
         </tbody>
       </table>
     </div>
@@ -448,9 +448,9 @@ sudo systemctl start kapatid</code></pre>
       <table>
         <thead><tr><th>Terminal</th><th>To</th></tr></thead>
         <tbody>
-          <tr><td>COM</td><td class="p">3.3V (pin 17), or an external supply +</td></tr>
+          <tr><td>COM</td><td class="p">3.3V, header pin 17</td></tr>
           <tr><td>NO</td><td class="p">strip +</td></tr>
-          <tr><td>—</td><td class="p">strip − to that same supply's ground</td></tr>
+          <tr><td>—</td><td class="p">strip − to GND, header pin 9</td></tr>
         </tbody>
       </table>
     </div>
@@ -598,7 +598,7 @@ amixer sset 'Master' 90%</code></pre>
     </div>
   </section>
 
-  <p class="foot">PIKAPATID v3 · ported from src/main.cpp and audio_player.py · Arduino Uno + laptop → single Raspberry Pi 4B</p>
+  <p class="foot">PIKAPATID v4 · ported from src/main.cpp and audio_player.py · Arduino Uno + laptop → single Raspberry Pi 4B</p>
 
 </div>
 </body>

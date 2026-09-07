@@ -97,13 +97,22 @@ class Motor:
 
     def __init__(self):
         self._pwm = None
+        self._digital = None
         self._level = 0.0
         self._hardware_pwm = False
 
         if not ON_PI:
             return
 
-        if config.PWM_MODE == "hardware":
+        if not config.MOTOR_PWM:
+            # Plain on/off. Some vibration modules ignore a switching
+            # waveform on IN entirely -- they run when the pin is held high
+            # and stay dead under PWM at any duty. Morse needs only on and
+            # off, so this costs nothing but MORSE_LEVEL.
+            from gpiozero import DigitalOutputDevice
+            self._digital = DigitalOutputDevice(config.PIN_MOTOR,
+                                                initial_value=False)
+        elif config.PWM_MODE == "hardware":
             # Kernel sysfs PWM. Needs dtoverlay=pwm-2chan in config.txt.
             # chip=0 is correct for Pi 1-4. Channel 0 == GPIO12, 1 == GPIO13.
             from rpi_hardware_pwm import HardwarePWM
@@ -113,9 +122,7 @@ class Motor:
             self._pwm.start(0)
             self._hardware_pwm = True
         else:
-            # Thread-timed software PWM, which works on any GPIO. Perfectly
-            # adequate here: an eccentric mass has 20-50 ms of mechanical
-            # inertia and cannot respond to PWM jitter.
+            # Thread-timed software PWM, which works on any GPIO.
             from gpiozero import PWMOutputDevice
             self._pwm = PWMOutputDevice(config.PIN_MOTOR,
                                         frequency=config.PWM_SOFT_FREQUENCY,
@@ -123,18 +130,29 @@ class Motor:
 
     def _apply(self, level):
         self._level = level
+
+        if self._digital is not None:
+            # Any non-zero level means "on" -- there are no shades here.
+            self._digital.value = bool(level)
+            return
+
         if self._pwm is None:
             print(f"[MOTOR] {level:.2f}")
             return
+
         if self._hardware_pwm:
             self._pwm.change_duty_cycle(level * 100.0)
         else:
             self._pwm.value = level
 
     def on(self, level=None):
-        """Spin the motor, kicking briefly to full power to break stiction."""
+        """Spin the motor, kicking briefly to full power to break stiction.
+
+        Used by the non-textured Morse path. The textured path calls set()
+        instead, because its bursts are shorter than KICK_TIME.
+        """
         level = config.MORSE_LEVEL if level is None else level
-        if level < 1.0:
+        if config.MOTOR_PWM and level < 1.0:
             self._apply(config.KICK_LEVEL)
             time.sleep(config.KICK_TIME)
         self._apply(level)
@@ -157,6 +175,11 @@ class Motor:
 
     def close(self):
         self.off()
+        if self._digital is not None:
+            try:
+                self._digital.close()
+            except Exception:
+                pass
         if self._pwm is not None:
             try:
                 self._pwm.stop() if hasattr(self._pwm, "stop") \
@@ -172,12 +195,23 @@ class Motor:
 class Light:
     """Indicator light for Child Mode.
 
-    The GPIO drives a ULN2003 input or a transistor base -- never the LED
-    strip itself, which draws far more current than a pin can source.
+    The GPIO drives a ULN2003 input, a transistor base, or a relay module's
+    input -- never the LED strip itself, which draws far more current than a
+    pin can source.
+
+    Two switching styles, selected by config:
+
+      push-pull (default)  drive HIGH for one state, LOW for the other.
+      open-drain           drive LOW for on, RELEASE the pin for off.
+
+    Open-drain exists for 5V-coil low-trigger relay modules, which a 3.3V
+    pin cannot release by driving high. See CHILD_LIGHT_OPEN_DRAIN.
     """
 
     def __init__(self):
         self._dev = None
+        self._pin = None
+        self._open_drain = False
         self._on = False
 
         if not ON_PI or config.PIN_CHILD_LIGHT is None:
@@ -189,19 +223,48 @@ class Light:
             active_high=not config.CHILD_LIGHT_ACTIVE_LOW,
             initial_value=False)
 
+        self._open_drain = bool(getattr(config, "CHILD_LIGHT_OPEN_DRAIN",
+                                        False))
+        if self._open_drain:
+            # Hold the underlying pin so its direction can be changed.
+            # gpiozero has no open-drain mode, but its pin objects expose
+            # `function`, which is all this needs.
+            self._pin = self._dev.pin
+            self._release()
+
+    def _release(self):
+        """Float the pin, letting an external pull-up set the level."""
+        try:
+            self._pin.function = "input"
+        except Exception as exc:                    # pragma: no cover
+            print(f"[LIGHT] cannot release pin ({exc}); using push-pull",
+                  file=sys.stderr)
+            self._open_drain = False
+
+    def _drive_low(self):
+        try:
+            self._pin.function = "output"
+            self._pin.state = 0
+        except Exception as exc:                    # pragma: no cover
+            print(f"[LIGHT] cannot drive pin ({exc})", file=sys.stderr)
+
     def on(self):
         self._on = True
-        if self._dev is not None:
-            self._dev.on()
-        else:
+        if self._dev is None:
             print("[LIGHT] on")
+        elif self._open_drain:
+            self._drive_low()
+        else:
+            self._dev.on()
 
     def off(self):
         self._on = False
-        if self._dev is not None:
-            self._dev.off()
-        else:
+        if self._dev is None:
             print("[LIGHT] off")
+        elif self._open_drain:
+            self._release()
+        else:
+            self._dev.off()
 
     def close(self):
         self.off()
@@ -234,11 +297,46 @@ class Audio:
             import soundfile
             self._sd = sounddevice
             self._sf = soundfile
-            if config.AUDIO_DEVICE:
-                sounddevice.default.device = config.AUDIO_DEVICE
         except Exception as exc:                    # pragma: no cover
             print(f"[AUDIO] library unavailable ({exc}); running silent",
                   file=sys.stderr)
+            return
+        self._select_device()
+
+    def _select_device(self):
+        """Resolve AUDIO_DEVICE now, at startup, rather than at first clip.
+
+        Assigning sounddevice.default.device does NOT validate the name --
+        PortAudio only resolves it when a stream is opened. So a name that
+        matches nothing produces no startup error, and then fails every
+        single clip for the rest of the run, printing to stderr where nobody
+        looks. From the outside that is indistinguishable from broken
+        speakers.
+
+        So probe the name once, report it once with the list of what IS
+        available, and fall back to the system default -- degraded audio
+        beats no audio, and the message says what to fix.
+        """
+        wanted = config.AUDIO_DEVICE
+        if not wanted:
+            return                  # inherit whatever the OS already uses
+
+        try:
+            self._sd.query_devices(wanted, "output")
+        except Exception as exc:
+            outputs = []
+            try:
+                outputs = sorted({d["name"] for d in self._sd.query_devices()
+                                  if d["max_output_channels"] > 0})
+            except Exception:
+                pass
+            print(f"[AUDIO] AUDIO_DEVICE={wanted!r} matches no output device "
+                  f"({exc}). Falling back to the system default. "
+                  f"Outputs found: {outputs or 'none'}", file=sys.stderr)
+            return
+
+        self._sd.default.device = wanted
+        print(f"[AUDIO] using {wanted!r}")
 
     def _worker(self, path):
         try:
@@ -255,7 +353,8 @@ class Audio:
                             break
                         stream.write(block)
         except Exception as exc:                    # pragma: no cover
-            print(f"[AUDIO] playback failed: {exc}", file=sys.stderr)
+            print(f"[AUDIO] playback of {path} failed: {exc}",
+                  file=sys.stderr)
 
     def play(self, path):
         """Start a clip, cutting off whatever was already playing."""
@@ -296,7 +395,7 @@ class Buttons:
     """
 
     NAMES = ("deaf", "blind", "child", "foreign",
-             "english", "spanish", "mandarin")
+             "english", "indian", "mandarin")
 
     def __init__(self, on_press, on_release=None):
         self._devices = {}
@@ -306,7 +405,7 @@ class Buttons:
             "child": config.PIN_CHILD,
             "foreign": config.PIN_FOREIGN,
             "english": config.PIN_ENGLISH,
-            "spanish": config.PIN_SPANISH,
+            "indian": config.PIN_INDIAN,
             "mandarin": config.PIN_MANDARIN,
         }
         if not ON_PI:

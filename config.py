@@ -10,21 +10,24 @@ Check AUDIO_DEVICE after your first run; everything else has a safe default.
 # ---------------------------------------------------------------------------
 # Which sound card to play through.
 #
-#   None            -> system default (risky: may pick HDMI)
-#   "Headphones"    -> the Pi 4's built-in 3.5mm jack. Works, but it is an
-#                      11-bit PWM/sigma-delta output with dither, so it
-#                      hisses noticeably.
-#   "USB"           -> a USB audio adapter. RECOMMENDED. About PHP 300 and
-#                      the single biggest audio-quality gain available to
-#                      this build. Draws ~50-100 mA of the Pi 4's 1.2 A
-#                      USB budget, which you are not otherwise using.
+#   None            -> whatever the system is already using. This is the
+#                      default, and it is the right answer whenever
+#                      `speaker-test` already works: the OS has picked a
+#                      card, so inherit that choice instead of second-
+#                      guessing it.
+#   "Headphones"    -> force the Pi's built-in 3.5mm jack. An 11-bit
+#                      PWM/sigma-delta output with dither, so it hisses
+#                      audibly, but it is always present.
+#   "USB"           -> a USB audio adapter, if one is actually fitted.
+#                      Better sound, but naming a device that is not
+#                      plugged in silences playback entirely.
 #
-# Run `python3 -m sounddevice` on the Pi to list exact names.
+# Run `./venv/bin/python -m sounddevice` on the Pi to list exact names.
 #
-# NOTE: Raspberry Pi OS uses PipeWire. If PipeWire is holding the card,
-# opening a raw "hw:0,0" fails. Prefer the name shown by the command above,
-# or "default" / "pulse".
-AUDIO_DEVICE = "USB"
+# A name here must match a real output device. It is checked once at startup
+# and, if it does not match, the code says so and falls back to the system
+# default rather than failing every clip in silence.
+AUDIO_DEVICE = None
 
 # ---------------------------------------------------------------------------
 # MOTOR PWM MODE
@@ -53,54 +56,124 @@ PWM_SOFT_FREQUENCY = 1000   # Hz. Used in "software" mode.
 PWM_FREQUENCY = 20000       # Hz. Used in "hardware" mode only.
 
 # ---------------------------------------------------------------------------
-# GPIO PIN MAP  (BCM numbering)
+# GPIO PIN MAP  (BCM numbering; physical header pins in the comments)
 # ---------------------------------------------------------------------------
-# The Pi 4 header is fully backwards compatible with the Pi 3, so this map
-# is identical on either board.
+# This is the wiring as actually built. Physical pin numbers are the ones
+# you count on the board; BCM numbers are what the code uses. They are not
+# the same, and mixing them up is the most common wiring fault here.
+#
+#   HEADER            USED FOR
+#   pin 2   5V        relay VCC + vibration module VCC
+#   pin 3   GPIO2     LCD SDA
+#   pin 4   5V        LCD VCC
+#   pin 5   GPIO3     LCD SCL
+#   pin 6   GND       LCD ground
+#   pin 9   GND       common ground: buttons, relay, LED strip, motor
+#   pin 11  GPIO17    deaf button
+#   pin 13  GPIO27    blind button
+#   pin 15  GPIO22    child button
+#   pin 16  GPIO23    foreign button
+#   pin 17  3.3V      LED strip supply, into the relay's COM terminal
+#   pin 18  GPIO24    english button
+#   pin 22  GPIO25    indian button
+#   pin 29  GPIO5     mandarin button
+#   pin 32  GPIO12    vibration module IN
+#   pin 34  GND       shutdown button ground
+#   pin 36  GPIO16    relay IN
+#   pin 40  GPIO21    shutdown button
 #
 # Buttons wire exactly as they did on the Arduino: pin -> button -> GND.
-# Internal pull-ups are enabled in software, no resistors needed.
-PIN_DEAF = 17
-PIN_BLIND = 27
-PIN_CHILD = 22
-PIN_FOREIGN = 23
-PIN_ENGLISH = 24
-PIN_SPANISH = 25
-PIN_MANDARIN = 5
+# Internal pull-ups are enabled in software, so no resistors are needed.
+PIN_DEAF = 17            # header pin 11
+PIN_BLIND = 27           # header pin 13
+PIN_CHILD = 22           # header pin 15
+PIN_FOREIGN = 23         # header pin 16
+PIN_ENGLISH = 24         # header pin 18
+PIN_INDIAN = 25          # header pin 22
+PIN_MANDARIN = 5         # header pin 29
 
-# Optional: momentary button, held 2 s, cleanly powers the Pi down.
-# Protects the SD card. Set to None if you are not fitting one.
-PIN_SHUTDOWN = 21
+# Momentary button, held 2 s, cleanly powers the Pi down -- which is what
+# protects the SD card from the corruption that pulling power causes.
+# Set to None if you are not fitting one.
+PIN_SHUTDOWN = 21        # header pin 40, ground on pin 34
 
 # Vibration motor on a 3-pin module (VCC / IN / GND). This pin drives IN
 # only; the module's own transistor switches the motor and its flyback diode
 # absorbs the back-EMF, so no external driver is needed and the GPIO carries
 # just a few milliamps of signal.
 #
-# VCC is on the 5V rail, shared with the relay and the LCD. See
-# MOTOR_SUPPLY_V below -- the rail choice sets the safe ceiling on
-# MORSE_LEVEL, and the two must be changed together.
-PIN_MOTOR = 12
+# VCC is on 5V (header pin 2), shared with the relay coil. See
+# MOTOR_SUPPLY_V below -- the rail sets the safe ceiling on MORSE_LEVEL, and
+# the two must be changed together.
+PIN_MOTOR = 12           # header pin 32
+
+# Drive the motor with PWM, or with plain on/off?
+#
+# False (default) uses a straight digital output: full rail when on, nothing
+# when off. Some 3-pin vibration modules will not respond to a switching
+# waveform on IN at all -- they run happily when the pin is held high and
+# stay dead under PWM, even at 100% duty. If holding GPIO12 high with
+# DigitalOutputDevice buzzes but PWMOutputDevice does not, this is why, and
+# False is the setting you want.
+#
+# Morse loses nothing by it: dots and dashes are on/off, not shades. What
+# goes away is MORSE_LEVEL and KICK_LEVEL -- in digital mode the motor is
+# always driven at the full rail, so intensity is set by MOTOR_SUPPLY_V and
+# MORSE_TEXTURE_DUTY instead.
+#
+# True restores PWM for modules that accept it, and re-enables MORSE_LEVEL.
+MOTOR_PWM = False
 
 # ---------------------------------------------------------------------------
 # CHILD MODE INDICATOR LIGHT
 # ---------------------------------------------------------------------------
-# An LED strip that lights while Child Mode is selected, and goes dark for
+# An LED strip that lights while Child Mode is selected and goes dark for
 # every other mode.
 #
 # IMPORTANT -- this pin SWITCHES the strip, it does not power it. Nine LEDs
-# draw about 160 mA against a 16 mA pin limit, so it needs a driver:
-# GPIO -> ULN2003 input (or an NPN base via 1k), strip - -> the matching
-# output, strip + -> 5V. Unlike the motor, the strip has no driver of its
-# own, so this is the one load still needing an external switch.
+# draw about 160 mA against a 16 mA pin limit. As built, a low-trigger relay
+# module does the switching:
 #
-# Set to None if no light is fitted.
-PIN_CHILD_LIGHT = 16
+#   GPIO16 (pin 36)  -> relay IN
+#   5V     (pin 2)   -> relay VCC
+#   GND    (pin 9)   -> relay GND
+#   3.3V   (pin 17)  -> relay COM
+#   relay NO         -> strip +
+#   strip -          -> GND (pin 9)
+#
+# Use NO, not NC, so the strip is dark when the relay is idle. If the light
+# is on constantly or inverted, that wire is on the wrong terminal.
+#
+# Set to None if no light is fitted -- the code then never touches GPIO16.
+PIN_CHILD_LIGHT = 16     # header pin 36
 
 # True for a LOW-level-trigger relay module (the SRD-05VDC-SL-C board), which
-# energises when the pin is pulled LOW. Set False for a ULN2003 channel or a
-# plain NPN transistor, both of which light the load when the pin goes HIGH.
+# energises when the pin is pulled LOW -- as built. Set False for a ULN2003
+# channel or a plain NPN transistor, both of which light the load on a HIGH.
 CHILD_LIGHT_ACTIVE_LOW = True
+
+# Open-drain control: drive the pin LOW to switch on, and RELEASE it (back to
+# a high-impedance input) to switch off, instead of driving it high.
+#
+# This exists for one specific and stubborn case: a low-trigger relay module
+# whose coil needs 5V. Such a board pulls its IN pin up to 5V, and a Pi pin
+# driven high only reaches 3.3V -- not enough to release the input, so the
+# relay switches on and never off. Releasing the pin lets the module's own
+# pull-up carry IN to the full 5V, which does release it.
+#
+#   pin driven LOW      ->  IN at 0V     ->  relay ON
+#   pin driven HIGH     ->  IN at ~3.3V  ->  relay still ON   (the problem)
+#   pin released (hi-Z) ->  IN at ~5V    ->  relay OFF        (the fix)
+#
+# WARNING -- while released, the pin sits at the module's 5V. Raspberry Pi
+# GPIOs are 3.3V and NOT 5V tolerant: the clamp diode conducts, and the
+# pull-up limits it to a milliamp or two, but this is out of spec and will
+# degrade the pin over time. Put a 1k resistor in series between the GPIO
+# and IN to make it safe, or better, drive the load through a transistor and
+# leave this False.
+#
+# Only meaningful together with CHILD_LIGHT_ACTIVE_LOW = True.
+CHILD_LIGHT_OPEN_DRAIN = False
 
 # I2C for the LCD uses GPIO2 (SDA) and GPIO3 (SCL). Not configurable.
 # (A Pi 4 actually has up to 6 I2C buses via dtoverlay=i2c3..i2c6 if you
@@ -178,7 +251,7 @@ MORSE_TEXTURE_HZ = 14
 # Fraction of each burst period the motor is driven. Lower digs the troughs
 # deeper (more contrast, less average power); higher approaches steady drive.
 # Below about 0.5 the mass never gets fully up to speed.
-MORSE_TEXTURE_DUTY = 0.70
+MORSE_TEXTURE_DUTY = 0.60
 
 # Where the audio lives, and which file each mode plays.
 SOUNDS_DIR = "Sounds"
@@ -186,6 +259,8 @@ AUDIO_FILES = {
     "blind": "Blind.mp3",
     "child": "Child.mp3",
     "english": "English.mp3",
-    "spanish": "Spanish.mp3",
+    "indian": "Indian.mp3",
     "mandarin": "Mandarin.mp3",
 }
+CHILD_LIGHT_OPEN_DRAIN = True
+CHILD_LIGHT_OPEN_DRAIN = True

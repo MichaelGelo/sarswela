@@ -1,4 +1,4 @@
-# PIKAPATID v3
+# PIKAPATID v4
 
 Raspberry Pi 4B controller for the KAPATID-VIBE assistive device. Eight buttons
 select a mode; each mode shows a line on a 16x2 LCD and plays an audio clip.
@@ -6,19 +6,21 @@ Deaf Mode additionally buzzes "Sarswela" in Morse code on a vibration motor,
 and Child Mode lights an LED strip.
 
 Ported from an Arduino sketch plus a separate Python audio player into one
-Python program. v3 replaces the TB6612FNG motor driver with a 3-pin coin
-motor module and adds the Child Mode light.
+Python program. v4 documents the wiring as actually built, and
+replaces Spanish with Indian.
 
-## What changed since v2
+## What changed since v3
 
-| | v2 | v3 |
+| | v3 | v4 |
 |---|---|---|
-| Motor driver | TB6612FNG, 4 GPIO pins | 3-pin module, 1 GPIO pin |
-| Motor supply | 5V via driver | 5V direct to module |
-| Child Mode light | none | LED strip via relay on GPIO16 |
-| Braking | active brake via TB6612 | coast (mass stops in ~30ms) |
+| Third language | Spanish | Indian (`Indian.mp3`) |
+| Pin map | generic | documented against the real header pins |
+| `kapatid.service` | template, `User=pi` | correct user and paths |
+| Light timing | after the LCD write | first in `on_press()` |
 
-GPIO6, 13 and 26 are freed by the motor change and are now unused.
+The `kapatid.service` fix matters: the v3 file was an unedited template
+naming a user `pi` that does not exist on this Pi, which fails at boot with
+`status=217/USER` and no traceback.
 
 ## Hardware
 
@@ -36,12 +38,12 @@ All numbers are BCM GPIO; physical pin numbers are in parentheses.
 
 ### LCD -- I2C
 
-| LCD | Pi |
-|---|---|
-| VCC | 5V (2) |
-| GND | GND (6) |
-| SDA | GPIO2 (3) |
-| SCL | GPIO3 (5) |
+| LCD | Pi | Header pin |
+|---|---|---|
+| VCC | 5V | 4 |
+| GND | GND | 6 |
+| SDA | GPIO2 | 3 |
+| SCL | GPIO3 | 5 |
 
 ### Buttons
 
@@ -55,17 +57,17 @@ in software, so no external resistors are needed.
 | Child | 22 | 15 |
 | Foreign | 23 | 16 |
 | English | 24 | 18 |
-| Spanish | 25 | 22 |
+| Indian | 25 | 22 |
 | Mandarin | 5 | 29 |
-| Shutdown | 21 | 40 |
+| Shutdown | 21 | 40 (ground on pin 34) |
 
 ### Vibration motor -- 3-pin module
 
-| Module | Pi |
-|---|---|
-| IN | GPIO12 (32) |
-| VCC | 5V (4) |
-| GND | GND (39) |
+| Module | Pi | Header pin |
+|---|---|---|
+| IN | GPIO12 | 32 |
+| VCC | 5V | 2 |
+| GND | GND | 9 |
 
 The module carries its own switching transistor and flyback diode, so GPIO12
 supplies only a logic signal -- a few milliamps. The motor's 80-100mA comes
@@ -83,11 +85,11 @@ suite fails with the value you should have used.
 
 Coil side:
 
-| Module | Pi |
-|---|---|
-| VCC | 5V (4) |
-| GND | GND (34) |
-| IN | GPIO16 (36) |
+| Module | Pi | Header pin |
+|---|---|---|
+| IN | GPIO16 | 36 |
+| VCC | 5V | 2 |
+| GND | GND | 9 |
 
 VCC must be 5V -- the SRD-05VDC-SL-C coil will not pull in reliably at 3.3V.
 
@@ -96,12 +98,42 @@ Contact side -- wire the relay into the strip's positive leg, using **NO**
 
 | Terminal | To |
 |---|---|
-| COM | 3.3V (17), or an external 5V supply |
+| COM | 3.3V, header pin 17 |
 | NO | strip + |
-| -- | strip - to the same supply's ground |
+| -- | strip - to GND, header pin 9 |
 
 Relay contacts are isolated, so if you power the strip externally its current
 never touches the Pi. Only the coil side needs a shared ground.
+
+## Replacing an existing install
+
+The one thing worth protecting is `Sounds/` -- your recordings are not in
+this archive -- and `venv/`, which takes a few minutes to rebuild. Everything
+else is disposable.
+
+```bash
+cd ~
+
+# 1. keep a full copy, in case something here is wrong
+cp -r sarswela sarswela-backup-$(date +%m%d)
+ls sarswela-backup-*/
+
+# 2. clear out the code, keeping Sounds/ and venv/
+cd ~/sarswela
+rm -f *.py *.md *.html *.service *.sh
+ls -la                      # Sounds/ and venv/ should still be here
+
+# 3. copy the new files in, then check nothing is missing
+ls *.py Sounds/
+```
+
+If `Sounds/` did get lost, restore it from the backup:
+
+```bash
+cp -r ~/sarswela-backup-*/Sounds ~/sarswela/
+```
+
+Delete the backup once the new code has run correctly -- not before.
 
 ## Install
 
@@ -125,8 +157,13 @@ sudo systemctl status kapatid         # want: active (running)
 this archive and are not needed by `kapatid.py`, which plays audio itself.
 Leave them in place if you still use them standalone.
 
-Audio clips belong in the directory named by `AUDIO_DIR` in `config.py`, using
-the filenames listed in `CLIPS`.
+Audio clips live in `Sounds/`, named exactly as `AUDIO_FILES` in `config.py`
+lists them: `Blind.mp3`, `Child.mp3`, `English.mp3`, `Indian.mp3`,
+`Mandarin.mp3`. Only `Indian.mp3` ships in this archive -- the rest are
+yours, so **do not delete `Sounds/` when replacing the code**.
+
+Deaf and Foreign play no clip by design: Deaf buzzes Morse instead, and
+Foreign only arms the language gate.
 
 ## Tuning
 
@@ -261,4 +298,4 @@ caught here rather than at 2am before a performance.
 | `test_logic.py` | 25 tests, no hardware needed. |
 | `kapatid.service` | systemd unit for autostart. |
 | `setup.sh` | Installs dependencies, enables I2C. |
-| `pikapatid_v3.html` | Build and wiring guide. Open in a browser. |
+| `pikapatid_v4.html` | Build and wiring guide. Open in a browser. |

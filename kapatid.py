@@ -12,7 +12,7 @@ Feature parity with the Arduino version:
   * "Sarswela" in Morse code on the haptic motor, in deaf mode
   * Morse is interruptible: pressing any other button cancels it
   * deaf button is edge-detected, so Morse plays once per press
-  * the foreign-language gate: press Foreign before English/Spanish/Mandarin
+  * the foreign-language gate: press Foreign before English/Indian/Mandarin
   * starting a clip stops whatever was playing
   * "Select a mode" shows until the first press
 
@@ -50,7 +50,7 @@ MESSAGES = {
     "child":    ("Child Mode", ""),
     "foreign":  ("Foreign Lang", "Mode"),
     "english":  ("English", ""),
-    "spanish":  ("Spanish", ""),
+    "indian":  ("Indian", ""),
     "mandarin": ("Mandarin", ""),
     "idle":     ("Select a mode", ""),
 }
@@ -63,7 +63,7 @@ class Kapatid:
         self.audio = hardware.Audio()
         self.light = hardware.Light()
 
-        # Mirrors the Arduino's `foreignGate`: English/Spanish/Mandarin are
+        # Mirrors the Arduino's `foreignGate`: English/Indian/Mandarin are
         # ignored until the Foreign button has been pressed.
         self.foreign_gate = False
 
@@ -114,11 +114,15 @@ class Kapatid:
         try:
             while remaining > 0:
                 span = min(on_span, remaining)
-                if first:
-                    self.motor.on(config.MORSE_LEVEL)
-                    first = False
-                else:
-                    self.motor.set(config.MORSE_LEVEL)
+                # The first burst of an element runs at KICK_LEVEL to break
+                # stiction, and the burst itself IS the kick -- it is not
+                # motor.on(), whose blocking KICK_TIME sleep is longer than
+                # a burst and so used to push every element ~60ms past its
+                # target. Spending the kick inside the element's own budget
+                # keeps Morse timing exact and still starts the mass moving.
+                self.motor.set(config.KICK_LEVEL if first
+                               else config.MORSE_LEVEL)
+                first = False
                 if self._sleep(span):
                     return True
                 remaining -= span
@@ -134,6 +138,21 @@ class Kapatid:
         return False
 
     def _play_morse(self, text):
+        print(f"[MORSE] start {text!r} "
+              f"level={config.MORSE_LEVEL} texture={config.MORSE_TEXTURE} "
+              f"pin={config.PIN_MOTOR}", flush=True)
+        try:
+            self._play_morse_inner(text)
+        except Exception as exc:
+            # A daemon thread that dies quietly is the worst case: the motor
+            # simply never moves and nothing anywhere says why.
+            import traceback
+            print(f"[MORSE] FAILED: {exc}", flush=True)
+            traceback.print_exc()
+        else:
+            print("[MORSE] done", flush=True)
+
+    def _play_morse_inner(self, text):
         unit = config.MORSE_UNIT
         try:
             for char in text.upper():
@@ -176,9 +195,13 @@ class Kapatid:
             if not self._running:
                 return
 
+            print(f"[PRESS] {name}", flush=True)
+
             # The gate: language buttons do nothing until Foreign is armed.
-            if name in ("english", "spanish", "mandarin") \
+            if name in ("english", "indian", "mandarin") \
                     and not self.foreign_gate:
+                print(f"[GATE ] {name} ignored -- press foreign first",
+                      flush=True)
                 return
 
             # The indicator light tracks Child Mode and nothing else, so any
@@ -191,8 +214,10 @@ class Kapatid:
             # GPIO costs microseconds, so nothing is gained by making it
             # queue behind the slow work.
             if name == "child":
+                print("[LIGHT] on", flush=True)
                 self.light.on()
             else:
+                print("[LIGHT] off", flush=True)
                 self.light.off()
 
             # Any press cancels a Morse sequence in progress. This is what
@@ -201,7 +226,7 @@ class Kapatid:
 
             self.any_pressed = True
             self.foreign_gate = name in ("foreign", "english",
-                                         "spanish", "mandarin")
+                                         "indian", "mandarin")
             self.lcd.show(*MESSAGES[name])
 
             if name == "deaf":
@@ -221,7 +246,13 @@ class Kapatid:
         stop = threading.Event()
         for sig in (signal.SIGINT, signal.SIGTERM):
             signal.signal(sig, lambda *_: stop.set())
-        print("KAPATID-VIBE ready. Waiting for button presses.")
+        print(f"[INIT ] motor pin={config.PIN_MOTOR} "
+              f"dev={self.motor._pwm!r}", flush=True)
+        print(f"[INIT ] light pin={config.PIN_CHILD_LIGHT} "
+              f"active_low={config.CHILD_LIGHT_ACTIVE_LOW} "
+              f"open_drain={getattr(config, 'CHILD_LIGHT_OPEN_DRAIN', False)} "
+              f"dev={self.light._dev!r}", flush=True)
+        print("KAPATID-VIBE ready. Waiting for button presses.", flush=True)
         try:
             while not stop.is_set():
                 stop.wait(timeout=0.5)

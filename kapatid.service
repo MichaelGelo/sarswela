@@ -5,12 +5,15 @@ Wants=sound.target
 
 [Service]
 Type=simple
-User=pi
-WorkingDirectory=/home/pi/kapatid-pi
-ExecStart=/home/pi/kapatid-pi/venv/bin/python /home/pi/kapatid-pi/kapatid.py
+# These three lines are install-specific. If your username or directory
+# differs, edit them -- a wrong User= gives status=217/USER on every
+# restart, with no Python traceback to read because nothing ever runs.
+User=sarswela
+WorkingDirectory=/home/sarswela/sarswela
+ExecStart=/home/sarswela/sarswela/venv/bin/python /home/sarswela/sarswela/kapatid.py
 Restart=on-failure
 RestartSec=3
-# Give ALSA a moment to enumerate the USB audio adapter before we grab it.
+# Give ALSA and I2C a moment to enumerate before we grab them.
 ExecStartPre=/bin/sleep 5
 
 [Install]
