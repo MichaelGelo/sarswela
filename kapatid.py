@@ -15,12 +15,6 @@ Feature parity with the Arduino version:
   * the foreign-language gate: press Foreign before English/Indian/Mandarin
   * starting a clip stops whatever was playing
   * "Select a mode" shows until the first press
-
-Differences, all deliberate:
-  * the relay is replaced by a TB6612FNG driver, so vibration has variable
-    intensity, brakes cleanly and makes no clicking noise
-  * buttons are event-driven rather than polled, so nothing blocks
-  * no serial protocol, no COM port detection, no reconnect loop
 """
 
 import os
@@ -89,16 +83,6 @@ class Kapatid:
         return self._morse_cancel.wait(timeout=seconds)
 
     def _buzz(self, duration):
-        """Drive the motor for `duration`, leaving it off. True if cancelled.
-
-        With config.MORSE_TEXTURE the element is delivered as a burst train
-        instead of a steady hold. Peak amplitude is unchanged -- the motor
-        still reaches MORSE_LEVEL -- but the skin cannot adapt to it, which
-        is what makes the same power feel stronger. The first burst goes
-        through motor.on() so its stiction kick still applies; the rest use
-        motor.set(), since the mass is turning by then and a kick per burst
-        would be longer than the burst itself.
-        """
         if not config.MORSE_TEXTURE:
             self.motor.on(config.MORSE_LEVEL)
             cancelled = self._sleep(duration)
@@ -114,12 +98,6 @@ class Kapatid:
         try:
             while remaining > 0:
                 span = min(on_span, remaining)
-                # The first burst of an element runs at KICK_LEVEL to break
-                # stiction, and the burst itself IS the kick -- it is not
-                # motor.on(), whose blocking KICK_TIME sleep is longer than
-                # a burst and so used to push every element ~60ms past its
-                # target. Spending the kick inside the element's own budget
-                # keeps Morse timing exact and still starts the mass moving.
                 self.motor.set(config.KICK_LEVEL if first
                                else config.MORSE_LEVEL)
                 first = False
@@ -144,8 +122,6 @@ class Kapatid:
         try:
             self._play_morse_inner(text)
         except Exception as exc:
-            # A daemon thread that dies quietly is the worst case: the motor
-            # simply never moves and nothing anywhere says why.
             import traceback
             print(f"[MORSE] FAILED: {exc}", flush=True)
             traceback.print_exc()
@@ -203,16 +179,6 @@ class Kapatid:
                 print(f"[GATE ] {name} ignored -- press foreign first",
                       flush=True)
                 return
-
-            # The indicator light tracks Child Mode and nothing else, so any
-            # other press darkens it.
-            #
-            # This runs FIRST, before cancelling Morse and before the LCD.
-            # Both of those take real time -- joining the Morse thread, and
-            # an I2C write of 32 characters -- and a light that lags a
-            # button by a tenth of a second reads as a fault. Setting one
-            # GPIO costs microseconds, so nothing is gained by making it
-            # queue behind the slow work.
             if name == "child":
                 print("[LIGHT] on", flush=True)
                 self.light.on()
@@ -220,8 +186,6 @@ class Kapatid:
                 print("[LIGHT] off", flush=True)
                 self.light.off()
 
-            # Any press cancels a Morse sequence in progress. This is what
-            # the Arduino's interruptibleDelay()/otherButtonPressed() did.
             self.cancel_morse()
 
             self.any_pressed = True
