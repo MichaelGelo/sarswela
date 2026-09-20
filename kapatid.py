@@ -12,7 +12,7 @@ Feature parity with the Arduino version:
   * "Sarswela" in Morse code on the haptic motor, in deaf mode
   * Morse is interruptible: pressing any other button cancels it
   * deaf button is edge-detected, so Morse plays once per press
-  * the foreign-language gate: press Foreign before English/Indian/Mandarin
+  * the foreign-language gate: press Foreign before English/Hindi/Mandarin
   * starting a clip stops whatever was playing
   * "Select a mode" shows until the first press
 """
@@ -44,7 +44,7 @@ MESSAGES = {
     "child":    ("Child Mode", ""),
     "foreign":  ("Foreign Lang", "Mode"),
     "english":  ("English", ""),
-    "indian":  ("Indian", ""),
+    "hindi":    ("Hindi", ""),
     "mandarin": ("Mandarin", ""),
     "idle":     ("Select a mode", ""),
 }
@@ -57,7 +57,7 @@ class Kapatid:
         self.audio = hardware.Audio()
         self.light = hardware.Light()
 
-        # Mirrors the Arduino's `foreignGate`: English/Indian/Mandarin are
+        # Mirrors the Arduino's `foreignGate`: English/Hindi/Mandarin are
         # ignored until the Foreign button has been pressed.
         self.foreign_gate = False
 
@@ -174,7 +174,7 @@ class Kapatid:
             print(f"[PRESS] {name}", flush=True)
 
             # The gate: language buttons do nothing until Foreign is armed.
-            if name in ("english", "indian", "mandarin") \
+            if name in ("english", "hindi", "mandarin") \
                     and not self.foreign_gate:
                 print(f"[GATE ] {name} ignored -- press foreign first",
                       flush=True)
@@ -190,7 +190,7 @@ class Kapatid:
 
             self.any_pressed = True
             self.foreign_gate = name in ("foreign", "english",
-                                         "indian", "mandarin")
+                                         "hindi", "mandarin")
             self.lcd.show(*MESSAGES[name])
 
             if name == "deaf":

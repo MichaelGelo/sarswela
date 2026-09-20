@@ -432,7 +432,7 @@ class Buttons:
     """
 
     NAMES = ("deaf", "blind", "child", "foreign",
-             "english", "indian", "mandarin")
+             "english", "hindi", "mandarin")
 
     def __init__(self, on_press, on_release=None):
         self._devices = {}
@@ -442,7 +442,7 @@ class Buttons:
             "child": config.PIN_CHILD,
             "foreign": config.PIN_FOREIGN,
             "english": config.PIN_ENGLISH,
-            "indian": config.PIN_INDIAN,
+            "hindi": config.PIN_HINDI,
             "mandarin": config.PIN_MANDARIN,
         }
         if not ON_PI:

@@ -99,7 +99,7 @@ PWM_FREQUENCY = 20000       # Hz. Used in "hardware" mode only.
 #   pin 16  GPIO23    foreign button
 #   pin 17  3.3V      LED strip supply, into the relay's COM terminal
 #   pin 18  GPIO24    english button
-#   pin 22  GPIO25    indian button
+#   pin 22  GPIO25    hindi button
 #   pin 29  GPIO5     mandarin button
 #   pin 32  GPIO12    vibration module IN
 #   pin 34  GND       shutdown button ground
@@ -113,7 +113,7 @@ PIN_BLIND = 27           # header pin 13
 PIN_CHILD = 22           # header pin 15
 PIN_FOREIGN = 23         # header pin 16
 PIN_ENGLISH = 24         # header pin 18
-PIN_INDIAN = 25          # header pin 22
+PIN_HINDI = 25           # header pin 22
 PIN_MANDARIN = 5         # header pin 29
 
 # Momentary button, held 2 s, cleanly powers the Pi down -- which is what
@@ -283,7 +283,7 @@ AUDIO_FILES = {
     "blind": "Blind.mp3",
     "child": "Child.mp3",
     "english": "English.mp3",
-    "indian": "Indian.mp3",
+    "hindi": "Hindi.mp3",
     "mandarin": "Mandarin.mp3",
 }
 CHILD_LIGHT_OPEN_DRAIN = True

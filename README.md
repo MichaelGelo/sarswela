@@ -7,13 +7,13 @@ and Child Mode lights an LED strip.
 
 Ported from an Arduino sketch plus a separate Python audio player into one
 Python program. v4 documents the wiring as actually built, and
-replaces Spanish with Indian.
+replaces Spanish with Hindi.
 
 ## What changed since v3
 
 | | v3 | v4 |
 |---|---|---|
-| Third language | Spanish | Indian (`Indian.mp3`) |
+| Third language | Spanish | Hindi (`Hindi.mp3`) |
 | Pin map | generic | documented against the real header pins |
 | `kapatid.service` | template, `User=pi` | correct user and paths |
 | Light timing | after the LCD write | first in `on_press()` |
@@ -57,7 +57,7 @@ in software, so no external resistors are needed.
 | Child | 22 | 15 |
 | Foreign | 23 | 16 |
 | English | 24 | 18 |
-| Indian | 25 | 22 |
+| Hindi | 25 | 22 |
 | Mandarin | 5 | 29 |
 | Shutdown | 21 | 40 (ground on pin 34) |
 
@@ -158,8 +158,8 @@ this archive and are not needed by `kapatid.py`, which plays audio itself.
 Leave them in place if you still use them standalone.
 
 Audio clips live in `Sounds/`, named exactly as `AUDIO_FILES` in `config.py`
-lists them: `Blind.mp3`, `Child.mp3`, `English.mp3`, `Indian.mp3`,
-`Mandarin.mp3`. Only `Indian.mp3` ships in this archive -- the rest are
+lists them: `Blind.mp3`, `Child.mp3`, `English.mp3`, `Hindi.mp3`,
+`Mandarin.mp3`. Only `Hindi.mp3` ships in this archive -- the rest are
 yours, so **do not delete `Sounds/` when replacing the code**.
 
 Deaf and Foreign play no clip by design: Deaf buzzes Morse instead, and
