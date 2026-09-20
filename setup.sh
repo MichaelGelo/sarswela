@@ -58,6 +58,13 @@ echo "--- I2C bus (expect 27, or 3f on some backpacks) ---"
 sudo i2cdetect -y 1 || true
 echo "--- Audio devices ---"
 "$HERE/venv/bin/python" -m sounddevice || true
+echo "--- Audio output level ---"
+# The mixer does not default to maximum, and an unset level is the most
+# common cause of "the box is too quiet". Claim it now rather than debugging
+# it the night before a performance.
+if [[ -x "$HERE/pi_audio.sh" ]]; then
+    "$HERE/pi_audio.sh" --max || true
+fi
 echo "--- Temperature / throttling (want 0x0) ---"
 vcgencmd measure_temp || true
 vcgencmd get_throttled || true
@@ -69,6 +76,9 @@ Setup finished.
 Next:
   1. Note the audio device name printed above and set AUDIO_DEVICE in
      config.py. "USB" if you fitted an adapter, "Headphones" for the jack.
+  1b. Normalise the clips so every mode plays at the same, louder level:
+       ./venv/bin/python normalize_audio.py          # report
+       ./venv/bin/python normalize_audio.py --apply  # do it
   2. If i2cdetect showed 3f instead of 27, update LCD_ADDRESS in config.py.
   3. Test:   ./venv/bin/python kapatid.py
   4. Autostart:

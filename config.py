@@ -30,6 +30,30 @@ Check AUDIO_DEVICE after your first run; everything else has a safe default.
 AUDIO_DEVICE = None
 
 # ---------------------------------------------------------------------------
+# VOLUME
+# ---------------------------------------------------------------------------
+# Master gain applied to every clip, on top of the OS mixer. 1.0 is the file
+# as recorded; 2.0 is +6 dB; 4.0 is +12 dB.
+#
+# Values above 1.0 are safe to try because playback runs through a soft
+# limiter (see hardware.Audio), so nothing can ever exceed full scale -- you
+# get compression rather than the crackle of digital clipping. But it is
+# compression: past about 3.0 the clips stop getting meaningfully louder and
+# just start sounding flat and strained. If 3.0 is still not enough, the
+# shortfall is in the output stage, not here -- see "Sound is too quiet" in
+# the README.
+#
+# Run `python normalize_audio.py` first. It raises every clip to the same
+# level with no distortion at all, which is free loudness this dial cannot
+# match. Run `./pi_audio.sh --max` too -- the mixer gain it claims is also
+# free, and there is usually a lot of it.
+#
+# Set to 2.0 because this box plays through the Pi's 3.5mm jack, which has no
+# headphone amplifier behind it and needs the help. Drop back to 1.0 if you
+# fit a USB sound card or a powered speaker.
+VOLUME = 2.0
+
+# ---------------------------------------------------------------------------
 # MOTOR PWM MODE
 # ---------------------------------------------------------------------------
 # "software" is the default and the right choice for a vibration motor.

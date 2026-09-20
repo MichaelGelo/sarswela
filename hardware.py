@@ -292,15 +292,22 @@ class Audio:
         self._lock = threading.Lock()
         self._sd = None
         self._sf = None
+        self._np = None
+        self._gain = 1.0
         try:
+            import numpy
             import sounddevice
             import soundfile
+            self._np = numpy
             self._sd = sounddevice
             self._sf = soundfile
         except Exception as exc:                    # pragma: no cover
             print(f"[AUDIO] library unavailable ({exc}); running silent",
                   file=sys.stderr)
             return
+        self._gain = max(0.0, float(getattr(config, "VOLUME", 1.0)))
+        if self._gain != 1.0:
+            print(f"[AUDIO] volume x{self._gain:.2f}")
         self._select_device()
 
     def _select_device(self):
@@ -338,6 +345,36 @@ class Audio:
         self._sd.default.device = wanted
         print(f"[AUDIO] using {wanted!r}")
 
+    # Above this the limiter starts bending the waveform. Below it, audio
+    # passes through untouched, so VOLUME = 1.0 on a normalised clip is
+    # bit-for-bit what is on disk.
+    _LIMIT_KNEE = 0.7
+
+    def _amplify(self, block):
+        """Apply VOLUME, then keep the result inside full scale.
+
+        Multiplying by the gain alone would wrap or clip hard at the driver,
+        and a clipped speech peak is a click you can hear across the room.
+        So anything past the knee is bent towards 1.0 along a tanh curve,
+        which is asymptotic -- the output cannot reach full scale, let alone
+        exceed it -- and joins the linear region smoothly, with no corner to
+        make a click out of. Loud passages compress instead of tearing.
+        """
+        block = block * self._gain
+        if self._gain <= 1.0:
+            return block
+
+        np = self._np
+        knee = self._LIMIT_KNEE
+        span = 1.0 - knee
+        magnitude = np.abs(block)
+        shaped = np.where(
+            magnitude <= knee,
+            magnitude,
+            knee + span * np.tanh((magnitude - knee) / span),
+        )
+        return (np.sign(block) * shaped).astype("float32")
+
     def _worker(self, path):
         try:
             with self._sf.SoundFile(path) as handle:
@@ -351,7 +388,7 @@ class Audio:
                                                dtype="float32"):
                         if self._stop.is_set():
                             break
-                        stream.write(block)
+                        stream.write(self._amplify(block))
         except Exception as exc:                    # pragma: no cover
             print(f"[AUDIO] playback of {path} failed: {exc}",
                   file=sys.stderr)

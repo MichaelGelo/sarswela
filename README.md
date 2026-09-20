@@ -171,6 +171,7 @@ Everything adjustable lives in `config.py`.
 
 | Setting | Default | Notes |
 |---|---|---|
+| `VOLUME` | `1.0` | Master playback gain. `2.0` is +6 dB. Soft-limited, so it cannot clip -- but past ~`3.0` it only compresses. Normalise the clips first. |
 | `MOTOR_SUPPLY_V` | `5.0` | Which rail VCC is on. Must match reality -- it sets the safe ceiling on `MORSE_LEVEL`. |
 | `MORSE_LEVEL` | `0.85` | Motor duty during Morse. `0.85` at 5V; use `1.0` if you move VCC to 3.3V. |
 | `KICK_LEVEL` | `1.0` | Brief full-power pulse that breaks stiction. |
@@ -271,6 +272,69 @@ partly conducting. Replace the relay with an NPN transistor (`CHILD_LIGHT_ACTIVE
 aplay -l
 amixer sset 'Master' 90%
 ```
+
+**Sound is too quiet, even at full volume.** Work through these in order --
+the first two are free and fix most of it, and there is no point buying
+hardware before they are done.
+
+1. *Normalise the clips.* This is usually the whole problem. The clips came
+   from different sources and arrived up to 18 dB apart: `Child.mp3` measured
+   -31 dBFS RMS against `English.mp3` at -13. You end up setting the system
+   volume for the quietest one, so everything runs quiet.
+
+   ```bash
+   ./venv/bin/python normalize_audio.py           # report, changes nothing
+   ./venv/bin/python normalize_audio.py --apply   # rewrite them
+   ```
+
+   Originals are kept in `Sounds/original/`, and re-running always works from
+   those, so it is safe to repeat and safe to undo. Pass `--target -10` for
+   more still, at the cost of some compression.
+
+2. *Claim the mixer gain nobody set.* `setup.sh` installs the audio stack
+   but never sets a level, so the box runs at whatever the OS defaulted to --
+   and the bcm2835 headphone control spans roughly -102 dB to +4 dB without
+   defaulting to the top. This is often the single biggest win available, and
+   it costs no quality at all.
+
+   ```bash
+   ./pi_audio.sh          # what is the mixer doing right now?
+   ./pi_audio.sh --max    # open it fully, and persist across reboots
+   ```
+
+   It finds the analogue card itself (ignoring HDMI), handles the control
+   being named `Headphone`, `PCM` or `Master` depending on OS release, runs
+   `alsactl store` so the setting survives a reboot, and opens the PipeWire
+   sink too -- on Bookworm a maxed ALSA control behind a half-open PipeWire
+   sink is still half volume.
+
+3. *Raise `VOLUME` in `config.py`.* Playback runs through a soft limiter, so
+   values above `1.0` compress rather than clip. Returns fall off fast, and
+   this is measured, not guessed: on a normalised clip, `1.5` buys +3.3 dB,
+   `2.0` buys +5.3 dB, `3.0` buys +7.5 dB, and `6.0` buys only +9.9 dB. Past
+   `3.0` you are trading a lot of dynamics for very little volume.
+
+4. *Then, and only then, blame the hardware -- and believe it.* If
+   normalised clips at `VOLUME = 2.0` with the mixer maxed are still weak,
+   nothing in software will save you. The Pi's 3.5mm jack is not a headphone
+   output. It is an 11-bit PWM signal through a passive filter, with no
+   amplifier behind it, spec'd to feed a powered speaker or a line input. It
+   cannot drive earphones to a comfortable level, and high-impedance ones are
+   hopeless. Pushing `VOLUME` higher to compensate only compresses the clips
+   into a flat, strained wall that is barely louder.
+
+   A USB sound card -- the $5 kind -- has a real headphone amplifier, and is
+   both considerably louder and much cleaner (the jack's PWM hiss disappears
+   with it). It also frees the PWM peripheral, which removes the motor/audio
+   conflict discussed under `PWM_MODE` entirely. After fitting one:
+
+   ```bash
+   ./venv/bin/python -m sounddevice   # get the exact device name
+   ```
+
+   then set `AUDIO_DEVICE` in `config.py` to that name and drop `VOLUME` back
+   to `1.0`. A small powered speaker on the jack works just as well if the
+   exhibit does not need earphones.
 
 **LCD not on the bus.** `i2cdetect -y 1` showing nothing means I2C is off or
 the wiring is wrong. Enable it with `sudo raspi-config` -> Interface Options ->
