@@ -9,16 +9,19 @@
 #
 #   ./pi_audio.sh          report what the mixer is doing now
 #   ./pi_audio.sh --max    open every playback control fully, and persist it
+#   ./pi_audio.sh --force-max   ...including gain past 0 dB, which clips
 #
 # Run this ON THE PI, not on the laptop.
 
 set -uo pipefail
 
 MAX=0
+FORCE=0
 CARD=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --max)  MAX=1 ;;
+        --force-max) MAX=1; FORCE=1 ;;
         --card) CARD="${2:-}"; shift ;;
         -h|--help) sed -n '2,14p' "$0"; exit 0 ;;
         *) echo "Unknown option: $1" >&2; exit 2 ;;
@@ -95,11 +98,23 @@ fi
 
 echo "=== Opening everything up ==="
 for ctl in "${CONTROLS[@]}"; do
-    if amixer -c "$CARD" sset "$ctl" 100% unmute >/dev/null 2>&1; then
-        echo "  $ctl -> 100%"
-    else
+    if ! amixer -c "$CARD" sset "$ctl" 100% unmute >/dev/null 2>&1; then
         # Capture-only and enum controls land here; harmless.
         echo "  $ctl -- skipped (not a playback level)"
+        continue
+    fi
+
+    # 100% is not the same thing as unity gain. The bcm2835 PCM control
+    # tops out at +4.00 dB, which is digital gain ABOVE full scale: feed it
+    # a normalised clip that already peaks near 0 dBFS and it clips hard,
+    # which sounds like distortion rather than volume. So read back what
+    # 100% actually got us and walk it down to 0 dB when it went past.
+    db=$(amixer -c "$CARD" sget "$ctl" 2>/dev/null          | grep -m1 -oE '\[-?[0-9.]+dB\]' | tr -cd '0-9.-')
+    if [[ $FORCE -eq 0 && -n $db ]] && awk "BEGIN{exit !($db > 0)}"; then
+        amixer -c "$CARD" sset "$ctl" 0dB >/dev/null 2>&1
+        echo "  $ctl -> 0 dB (100% is +${db} dB, which clips -- use --force-max to insist)"
+    else
+        echo "  $ctl -> 100%${db:+ (${db} dB)}"
     fi
 done
 echo
