@@ -210,8 +210,15 @@ class Kapatid:
         stop = threading.Event()
         for sig in (signal.SIGINT, signal.SIGTERM):
             signal.signal(sig, lambda *_: stop.set())
+        # Report whichever device the motor actually built. Printing _pwm
+        # alone said "dev=None" whenever MOTOR_PWM was False -- the normal,
+        # deliberate setting for these modules -- which reads as a failed
+        # init when nothing is wrong at all.
+        motor_dev = (self.motor._pwm if self.motor._pwm is not None
+                     else self.motor._digital)
         print(f"[INIT ] motor pin={config.PIN_MOTOR} "
-              f"dev={self.motor._pwm!r}", flush=True)
+              f"mode={'pwm' if config.MOTOR_PWM else 'digital'} "
+              f"dev={motor_dev!r}", flush=True)
         print(f"[INIT ] light pin={config.PIN_CHILD_LIGHT} "
               f"active_low={config.CHILD_LIGHT_ACTIVE_LOW} "
               f"open_drain={getattr(config, 'CHILD_LIGHT_OPEN_DRAIN', False)} "

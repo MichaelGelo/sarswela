@@ -144,10 +144,10 @@ mkdir -p sarswela && cd sarswela
 
 chmod +x setup.sh && ./setup.sh      # dependencies, I2C
 
-./venv/bin/python test_logic.py      # 25 tests, no hardware needed
+./venv/bin/python test_logic.py      # 36 tests, no hardware needed
 i2cdetect -y 1                       # expect 27
 
-sudo cp kapatid.service /etc/systemd/system/
+sudo cp kapatid.service.local /etc/systemd/system/kapatid.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now kapatid
 sudo systemctl status kapatid         # want: active (running)
@@ -346,7 +346,7 @@ I2C. If it shows `3f` instead of `27`, set `LCD_ADDRESS` in `config.py`.
 ./venv/bin/python test_logic.py
 ```
 
-25 tests, no hardware required -- they mock the GPIO layer. They cover mode
+36 tests, no hardware required -- they mock the GPIO layer. They cover mode
 transitions, the Morse table, the foreign-language gate, clip selection, light
 behaviour, and pin-assignment sanity (no duplicates, nothing on the I2C pins).
 Run them before deploying any config change; a duplicate pin assignment gets
@@ -359,7 +359,9 @@ caught here rather than at 2am before a performance.
 | `kapatid.py` | Main program. Run this. |
 | `hardware.py` | GPIO, LCD, motor, light, audio. Mocks itself off-Pi. |
 | `config.py` | Every pin and timing constant. |
-| `test_logic.py` | 25 tests, no hardware needed. |
-| `kapatid.service` | systemd unit for autostart. |
+| `test_logic.py` | 36 tests, no hardware needed. |
+| `kapatid.service` | systemd unit template. `setup.sh` writes `kapatid.service.local` from it with this install's real user and paths -- install that one. |
+| `pi_audio.sh` | Reports and maximises the ALSA mixer. `--max` claims the gain nobody sets. |
+| `normalize_audio.py` | Loudness-normalises the clips in `Sounds/`. |
 | `setup.sh` | Installs dependencies, enables I2C. |
 | `pikapatid_v4.html` | Build and wiring guide. Open in a browser. |

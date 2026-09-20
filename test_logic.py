@@ -6,6 +6,7 @@ Runs anywhere (no Pi needed). Each test asserts against the behaviour of
 src/main.cpp so we can prove parity before buying hardware.
 """
 
+import os
 import sys
 import time
 import unittest
@@ -59,7 +60,10 @@ class FakeAudio:
         # Mirrors the real Audio.play(), which cuts off the previous clip
         # before starting a new one.
         self.stop()
-        self.played.append(path.split("/")[-1])
+        # basename, not split("/"): kapatid builds these with os.path.join,
+        # so on Windows the separator is a backslash and a "/" split returns
+        # the whole path, failing every clip assertion for the wrong reason.
+        self.played.append(os.path.basename(path))
 
     def stop(self):
         self.stops += 1
@@ -121,7 +125,7 @@ class ParityTests(unittest.TestCase):
             "child": ("Child Mode", ""),
             "foreign": ("Foreign Lang", "Mode"),
             "english": ("English", ""),
-            "spanish": ("Spanish", ""),
+            "hindi": ("Hindi", ""),
             "mandarin": ("Mandarin", ""),
         }
         self.app.on_press("foreign")   # arm the gate for the language modes
@@ -141,7 +145,7 @@ class ParityTests(unittest.TestCase):
 
     def test_language_buttons_ignored_before_foreign(self):
         """`foreignGate` starts false, so these must do nothing."""
-        for name in ("english", "spanish", "mandarin"):
+        for name in ("english", "hindi", "mandarin"):
             self.app.on_press(name)
         self.assertEqual(self.app.audio.played, [])
         self.assertEqual(self.app.lcd.history[-1], ("Select a mode", ""))
@@ -155,8 +159,8 @@ class ParityTests(unittest.TestCase):
         """Arduino sets foreignGate = false in the deaf/blind/child branches."""
         self.app.on_press("foreign")
         self.app.on_press("blind")
-        self.app.on_press("spanish")     # gate should now be shut
-        self.assertNotIn("Spanish.mp3", self.app.audio.played)
+        self.app.on_press("hindi")     # gate should now be shut
+        self.assertNotIn("Hindi.mp3", self.app.audio.played)
 
     # -- Audio ------------------------------------------------------------
 
@@ -165,12 +169,12 @@ class ParityTests(unittest.TestCase):
         self.app.on_press("child")
         self.app.on_press("foreign")
         self.app.on_press("english")
-        self.app.on_press("spanish")
+        self.app.on_press("hindi")
         self.app.on_press("mandarin")
         self.assertEqual(
             self.app.audio.played,
             ["Blind.mp3", "Child.mp3", "English.mp3",
-             "Spanish.mp3", "Mandarin.mp3"])
+             "Hindi.mp3", "Mandarin.mp3"])
 
     def test_new_clip_stops_the_previous_one(self):
         """audio_player.py calls sd.stop() before every sd.play()."""
@@ -327,13 +331,23 @@ class ParityTests(unittest.TestCase):
 
     def test_texture_reaches_full_level(self):
         """Texture must not quietly reduce amplitude -- it trades duty, not
-        peak. Every drive is at MORSE_LEVEL."""
+        peak.
+
+        _buzz drives the FIRST burst at KICK_LEVEL to break stiction and
+        every burst after it at MORSE_LEVEL. This test used to demand
+        MORSE_LEVEL for all of them, which the kick has contradicted ever
+        since it was added.
+        """
         self.app._buzz(config.MORSE_UNIT)
         levels = [e[1] for e in self.app.motor.events
                   if e[0] in ("on", "set") and e[1]]
         self.assertTrue(levels)
-        for level in levels:
+        self.assertEqual(levels[0], config.KICK_LEVEL,
+                         "first burst must kick to break stiction")
+        for level in levels[1:]:
             self.assertEqual(level, config.MORSE_LEVEL)
+        self.assertTrue(all(lvl >= config.MORSE_LEVEL for lvl in levels),
+                        "texture must trade duty, never peak")
 
     def test_buzz_leaves_the_motor_off(self):
         self.app._buzz(config.MORSE_UNIT)
@@ -402,7 +416,7 @@ class ParityTests(unittest.TestCase):
 
     def test_no_duplicate_gpio_pins(self):
         pins = [config.PIN_DEAF, config.PIN_BLIND, config.PIN_CHILD,
-                config.PIN_FOREIGN, config.PIN_ENGLISH, config.PIN_SPANISH,
+                config.PIN_FOREIGN, config.PIN_ENGLISH, config.PIN_HINDI,
                 config.PIN_MANDARIN, config.PIN_MOTOR]
         if config.PIN_SHUTDOWN is not None:
             pins.append(config.PIN_SHUTDOWN)
@@ -413,7 +427,7 @@ class ParityTests(unittest.TestCase):
     def test_no_pin_collides_with_i2c(self):
         """GPIO2/3 belong to the LCD bus and must not be reused."""
         pins = [config.PIN_DEAF, config.PIN_BLIND, config.PIN_CHILD,
-                config.PIN_FOREIGN, config.PIN_ENGLISH, config.PIN_SPANISH,
+                config.PIN_FOREIGN, config.PIN_ENGLISH, config.PIN_HINDI,
                 config.PIN_MANDARIN, config.PIN_MOTOR,
                 config.PIN_CHILD_LIGHT]
         self.assertNotIn(2, pins)

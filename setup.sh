@@ -45,11 +45,47 @@ python3 -m venv --system-site-packages "$HERE/venv"
 # Only needed if you set PWM_MODE = "hardware" in config.py.
 "$HERE/venv/bin/pip" install rpi-hardware-pwm
 
+echo "==> Tailoring the systemd unit to this install"
+# kapatid.service is committed with one specific user and path baked in. The
+# old advice was `sed -i "s|/home/pi/kapatid-pi|$HERE|g" kapatid.service`,
+# which broke the moment those literal paths changed: the pattern matched
+# nothing, said nothing, and left the unit pointing at a directory that need
+# not exist -- which fails as status=200/CHDIR with no Python traceback.
+#
+# Anchor on the KEYS instead of on any path value, so this cannot go stale
+# again, and write to a separate file so the repo stays clean for `git pull`.
+RUN_USER="${SUDO_USER:-$(id -un)}"
+sed -E     -e "s|^User=.*|User=${RUN_USER}|"     -e "s|^WorkingDirectory=.*|WorkingDirectory=${HERE}|"     -e "s|^ExecStart=.*|ExecStart=${HERE}/venv/bin/python ${HERE}/kapatid.py|"     "$HERE/kapatid.service" > "$HERE/kapatid.service.local"
+echo "    wrote kapatid.service.local (User=${RUN_USER}, dir=${HERE})"
+
 echo "==> Reducing idle heat (no performance needed for this workload)"
-if ! grep -q "^GOVERNOR=" /etc/default/cpufrequtils 2>/dev/null; then
-    sudo apt install -y cpufrequtils
-    echo 'GOVERNOR="powersave"' | sudo tee /etc/default/cpufrequtils >/dev/null
-fi
+# This is a comfort tweak, never a requirement -- so it must not be allowed to
+# abort the install. It used to: cpufrequtils was dropped in Debian 13
+# (trixie), apt exited non-zero, and `set -e` killed the script here, silently
+# skipping the I2C scan, the audio device list, the mixer setup and the
+# closing instructions. Everything below this line matters more than this
+# does, so it runs behind `|| true` and reports what it managed.
+set_governor() {
+    if sudo apt install -y cpufrequtils >/dev/null 2>&1; then
+        echo 'GOVERNOR="powersave"' | sudo tee /etc/default/cpufrequtils >/dev/null
+        echo "    powersave governor set via cpufrequtils (survives reboot)"
+        return 0
+    fi
+
+    echo "    cpufrequtils unavailable (expected on Debian 13+) -- using sysfs"
+    local governor found=0
+    for governor in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
+        [[ -e $governor ]] || continue
+        echo powersave | sudo tee "$governor" >/dev/null 2>&1 && found=1
+    done
+    if [[ $found -eq 1 ]]; then
+        echo "    governor now: $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor)"
+        echo "    note: set via sysfs, so it resets on reboot"
+    else
+        echo "    no cpufreq governor exposed; skipping (harmless)"
+    fi
+}
+set_governor || true
 
 echo "==> Checking hardware"
 echo "--- Board revision (c03114 / c03115 are current) ---"
@@ -81,9 +117,10 @@ Next:
        ./venv/bin/python normalize_audio.py --apply  # do it
   2. If i2cdetect showed 3f instead of 27, update LCD_ADDRESS in config.py.
   3. Test:   ./venv/bin/python kapatid.py
-  4. Autostart:
-       sed -i "s|/home/pi/kapatid-pi|$HERE|g" kapatid.service
-       sudo cp kapatid.service /etc/systemd/system/
+  4. Autostart. kapatid.service.local was generated above with this
+     install's real user and paths, so nothing needs editing:
+       sudo cp kapatid.service.local /etc/systemd/system/kapatid.service
+       sudo systemctl daemon-reload
        sudo systemctl enable --now kapatid
 
 No device-tree overlay is needed with the default PWM_MODE = "software".
