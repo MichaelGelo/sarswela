@@ -56,15 +56,23 @@ if [[ ${#CONTROLS[@]} -eq 0 ]]; then
 fi
 
 echo "=== Current levels ==="
+# Track whether any gain is actually left to claim, so the report does not
+# nag about opening a mixer that is already wide open.
+BELOW_MAX=0
 for ctl in "${CONTROLS[@]}"; do
-    line=$(amixer -c "$CARD" sget "$ctl" 2>/dev/null \
-           | grep -m1 -oE '\[[0-9]+%\].*' )
-    printf '  %-14s %s\n' "$ctl" "${line:-(no playback level)}"
+    line=$(amixer -c "$CARD" sget "$ctl" 2>/dev/null | grep -m1 -oE '\[[0-9]+%\].*')
+    printf '  %-14s %s
+' "$ctl" "${line:-(no playback level)}"
+    pct=$(printf '%s' "$line" | grep -oE '^\[[0-9]+%\]' | tr -cd '0-9')
+    if [[ -n $pct ]] && (( pct < 100 )); then
+        BELOW_MAX=1
+    fi
 done
 echo
 
 if [[ $MAX -eq 0 ]]; then
-    cat <<'NOTE'
+    if [[ $BELOW_MAX -eq 1 ]]; then
+        cat <<'NOTE'
 Report only -- nothing changed.
 
 Anything below 100% above is loudness you are throwing away. To claim it:
@@ -72,6 +80,16 @@ Anything below 100% above is loudness you are throwing away. To claim it:
     ./pi_audio.sh --max
 
 NOTE
+    else
+        cat <<'NOTE'
+Report only -- nothing changed.
+
+Every playback control is already fully open, so there is no mixer gain
+left to claim here. If it is still too quiet the shortfall is in the
+output stage, not the settings -- see "Sound is too quiet" in README.md.
+
+NOTE
+    fi
     exit 0
 fi
 
