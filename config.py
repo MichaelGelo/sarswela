@@ -48,10 +48,16 @@ AUDIO_DEVICE = None
 # match. Run `./pi_audio.sh --max` too -- the mixer gain it claims is also
 # free, and there is usually a lot of it.
 #
-# Set to 2.0 because this box plays through the Pi's 3.5mm jack, which has no
-# headphone amplifier behind it and needs the help. Drop back to 1.0 if you
-# fit a USB sound card or a powered speaker.
-VOLUME = 2.0
+# 1.0 is the right default, and raising it should be a last resort. This was
+# briefly set to 2.0 on the theory that the Pi's 3.5mm jack needs all the help
+# it can get. It does not: the ALSA mixer turned out to be sitting 24 dB below
+# its maximum, and recovering that is clean gain, where this dial is not.
+#
+# Stacking them actively hurt. Normalised clips peak near 0 dBFS, 2.0 pushed
+# them into the limiter, and a mixer left at +4 dB then clipped what was left
+# -- which is heard as distortion, not volume. Claim the mixer gain first
+# (./pi_audio.sh), and only reach for this if the result is still too quiet.
+VOLUME = 1.0
 
 # ---------------------------------------------------------------------------
 # MOTOR PWM MODE
